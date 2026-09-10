@@ -1425,9 +1425,9 @@ html body.youth-mode::after{display:none!important;}
   background:rgba(255,255,255,.92);border:2px solid #CBEAD8;box-shadow:0 8px 20px rgba(46,125,91,.14);}
 .yg-ringtxt{font-weight:900;color:#2E7D5B;letter-spacing:.05em;}
 .yg-hint{text-align:center;margin:12px 0 0;font-size:.78rem;color:#7FA392;letter-spacing:.06em;}
-/* 玉玉 · 3D 鹦鹉挂载点（复用 .ym-mascot 圆形白边定位） */
-.ym-yuyu{overflow:hidden;pointer-events:none;background:radial-gradient(circle at 50% 38%,rgba(255,236,244,.9),rgba(255,214,232,.55) 70%,rgba(255,190,220,.35));}
-.ym-yuyu canvas{display:block;width:100%!important;height:100%!important;border-radius:50%;}
+/* 玉玉 · 3D 鹦鹉：无框直出（去圆窗/白边/底色，模型直接站在舞台上） */
+.ym-yuyu{overflow:visible;pointer-events:none;background:none;}
+.ym-yuyu canvas{display:block;width:100%!important;height:100%!important;border-radius:0;}
 /* 花园旁的课程入口（prima aurora 浅粉设计语言） */
 .yg-courses{max-width:860px;margin:22px auto 0;padding:14px 18px 16px;background:rgba(255,255,255,.66);
   border:1px solid rgba(255,178,208,.45);border-radius:18px;backdrop-filter:blur(6px);
@@ -1763,6 +1763,19 @@ html body.youth-mode::after{display:none!important;}
 @media (prefers-reduced-motion:reduce){
   .yg-ambient,.yg-vignette{display:none;}
   .ya-ray,.ya-mote,.ya-petal,.ya-bfly,.bt-glint,.bt-bubble{animation:none!important;}
+}
+/* ═══ v3.2 · 玉玉去框直出 + 视窗放大 ═══ */
+.yg-stage .ym-yuyu{
+  width:124px;height:124px;                        /* 挂载视窗放大（原 88px） */
+  border:none;border-radius:0;box-shadow:none;     /* 去白边圆窗 */
+  background:none;overflow:visible;
+  animation:ymBob 3.2s ease-in-out infinite;       /* 保留轻浮动 */
+}
+.yg-stage .ym-yuyu canvas{border-radius:0;}
+.ym-yuyu-say{left:168px;bottom:148px;}
+@media (max-width:720px){
+  .yg-stage .ym-yuyu{width:96px;height:96px;}
+  .ym-yuyu-say{left:118px;bottom:128px;}
 }
 </style>
 
@@ -4655,8 +4668,9 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
       <div class="yg-stage">
         <div class="yg-halo"></div>
         <div class="yg-energy" id="ym-energy" aria-live="polite" title="能量来自每日签到与学完课程 · 连续签到有加成">
-          <span class="yg-energy-ico">⚡</span><b id="ym-energy-num">0</b><span class="yg-energy-unit">g</span>
-          <span class="yg-energy-hint">· 签到与听课可得</span>
+          <span class="yg-orb"><i class="yg-orb-hi" aria-hidden="true"></i><em class="yg-orb-bolt" aria-hidden="true">⚡</em>
+            <span class="yg-orb-val"><b id="ym-energy-num">0</b><span class="yg-energy-unit">g</span></span></span>
+          <span class="yg-energy-hint">签到与听课可得</span>
         </div>
         <div class="yg-badge">🌳 玉兰秘密花园</div>
         <div id="ym-magnolia" aria-label="3D 玉兰花树 · 拖动可旋转"></div>
@@ -19204,9 +19218,9 @@ import { GLTFLoader } from 'gltfloader';
         if (window.SG3D_TOON) window.SG3D_TOON.toonize(m, { keepEmissive: true }); /* 动漫风：转卡通材质 */
         scene.add(m);
 
-        var dist = 1.0 / Math.tan(38 * Math.PI / 360) * 0.62;
-        camera.position.set(0, 0.55, dist);
-        camera.lookAt(0, 0.45, 0);
+        var dist = 1.0 / Math.tan(38 * Math.PI / 360) * 0.56;   /* 相机更近：鹦鹉占满视窗 */
+        camera.position.set(0, 0.52, dist);
+        camera.lookAt(0, 0.50, 0);
 
         P.available = true; P.node = m;
         var t0 = performance.now();
@@ -19617,23 +19631,39 @@ body.youth-mode .yg-stage {
 body.youth-mode .yg-halo { border:none; animation:none; box-shadow:none;
   background:radial-gradient(closest-side, rgba(255,255,255,.5), rgba(255,244,250,0) 74%); }
 
-/* 能量胶囊 HUD：左上角，收集时 Q 弹一下 */
+/* 能量 2D 球体 HUD：左上角悬浮发光球，收集时 Q 弹一下 */
 body.youth-mode .yg-energy {
-  position:absolute; top:10px; left:10px; z-index:7;
-  display:flex; align-items:center; gap:5px;
-  padding:7px 13px 7px 10px; border-radius:999px;
-  background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(234,250,241,.94));
-  border:2.5px solid #7edea0; box-shadow:3px 4px 0 rgba(126,222,160,.35);
+  position:absolute; top:14px; left:16px; z-index:7;
+  display:flex; flex-direction:column; align-items:center; gap:7px;
+  padding:0; background:none; border:none; box-shadow:none; border-radius:0;
   font-family:var(--font-main,-apple-system,"PingFang SC","Segoe UI",sans-serif);
   font-size:14px; font-weight:800; line-height:1; color:#2c7a4b;
   pointer-events:none; user-select:none;
 }
-body.youth-mode .yg-energy .yg-energy-ico { font-size:16px; filter:drop-shadow(0 0 6px rgba(255,214,90,.85)); }
-body.youth-mode .yg-energy b { font-size:16px; color:#22a05c; font-variant-numeric:tabular-nums; }
-body.youth-mode .yg-energy .yg-energy-unit { font-size:12px; color:#4aa771; }
-body.youth-mode .yg-energy .yg-energy-hint { font-size:11px; color:#6fae88; font-weight:600; }
-body.youth-mode .yg-energy.yg-pulse { animation:ygHudPulse .5s cubic-bezier(.34,1.56,.64,1); }
+body.youth-mode .yg-orb {
+  position:relative; width:66px; height:66px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 33% 27%, #f2fff7 0%, #b9f4d2 30%, #62da9b 58%, #27b06d 100%);
+  box-shadow:0 0 0 3px rgba(255,255,255,.7), 0 10px 22px -6px rgba(39,176,109,.55),
+    inset 0 -8px 14px rgba(14,120,66,.35), inset 0 6px 10px rgba(255,255,255,.55);
+  animation:ygOrbFloat 3.8s ease-in-out infinite;
+}
+.yg-orb .yg-orb-hi{position:absolute; left:13px; top:9px; width:17px; height:10px; border-radius:50%;
+  background:rgba(255,255,255,.92); filter:blur(1px); transform:rotate(-18deg);}
+.yg-orb .yg-orb-bolt{position:absolute; right:-2px; top:-4px; font-style:normal; font-size:14px;
+  filter:drop-shadow(0 0 5px rgba(255,214,90,.9)); animation:ygBoltTw 2.6s ease-in-out infinite;}
+body.youth-mode .yg-orb-val{display:flex; align-items:baseline; gap:1px;
+  text-shadow:0 1px 0 rgba(255,255,255,.65), 0 0 10px rgba(255,255,255,.35);}
+body.youth-mode .yg-orb-val b{font-size:17px; color:#0d7a42; font-variant-numeric:tabular-nums;}
+body.youth-mode .yg-orb-val .yg-energy-unit{font-size:11px; color:#128a4e; font-weight:900;}
+body.youth-mode .yg-energy .yg-energy-hint{font-size:10.5px; color:#3e8a60; font-weight:700;
+  background:rgba(255,255,255,.82); border-radius:999px; padding:3px 9px;
+  box-shadow:0 2px 8px rgba(46,125,91,.18); letter-spacing:.02em;}
+body.youth-mode .yg-energy.yg-pulse .yg-orb{animation:ygOrbPop .55s cubic-bezier(.34,1.56,.64,1), ygOrbFloat 3.8s ease-in-out .55s infinite;}
 @keyframes ygHudPulse { 0%{transform:scale(1)} 35%{transform:scale(1.16)} 100%{transform:scale(1)} }
+@keyframes ygOrbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ygOrbPop{0%{transform:scale(1)}38%{transform:scale(1.22)}70%{transform:scale(.94)}100%{transform:scale(1)}}
+@keyframes ygBoltTw{0%,100%{opacity:.9;transform:scale(1) rotate(-8deg)}50%{opacity:1;transform:scale(1.18) rotate(10deg)}}
 
 /* 收集飘字：+Ng 从点击处冒出、上浮消散 */
 body.youth-mode .yg-egy-bub {
