@@ -4480,6 +4480,11 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
     <div class="yp-inner">
       <div class="yg-stage">
         <div class="yg-halo"></div>
+        <div class="yg-energy" id="ym-energy" aria-live="polite" title="点场景里发光的能量球就能收集">
+          <span class="yg-energy-ico">⚡</span><b id="ym-energy-num">0</b><span class="yg-energy-unit">g</span>
+          <span class="yg-energy-hint">· 点能量球收集</span>
+        </div>
+        <div class="yg-badge">🌳 玉兰秘密花园</div>
         <div id="ym-magnolia" aria-label="3D 玉兰花树 · 拖动可旋转"></div>
         <div class="ym-mascot ym-yuyu" id="ym-yuyu" role="img" aria-label="伙伴玉玉 · 鹦鹉模型"></div>
         <span class="yg-petal p1">🌸</span>
@@ -4491,7 +4496,7 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
         <span class="pg-dot" id="ym-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span class="yg-ringtxt" id="ym-prog-txt">0 / 8 生长阶段</span>
       </div>
-      <p class="yg-hint">拖一拖，玉兰树会转圈圈 · 学完一课，生命之雨就会落下，小树长高一截、枝头多开一朵</p>
+      <p class="yg-hint">拖一拖，玉兰树会转圈圈 · 点一点会发光的能量球收集能量 · 学完一课，生命之雨就会落下，小树长高一截、枝头多开一朵</p>
       <!-- 课程入口：就种在玉兰旁边，点开即学 -->
       <div class="yg-courses">
         <div class="yg-courses-head"><b>📚 课程入口</b><span>就种在玉兰旁边 · 点开即学</span></div>
@@ -16808,6 +16813,62 @@ import { GLTFLoader } from 'gltfloader';
   'use strict';
   if (window.SG3DMagnolia && window.SG3DMagnolia.__v2) return;
 
+  /* ══════ 动漫风共享工具（青少年版）：玉兰 / 安安 / 玉玉 三个场景共用 ══════
+     1) 四阶色阶渐变贴图：明暗分明的「赛璐璐」着色，是动漫光照的核心
+     2) toonize(root)：把场景里所有 PBR 材质换成 MeshToonMaterial（保留贴图/透明度/双面/自发光） */
+  window.SG3D_TOON = (function () {
+    var grad = null;
+    function gradientMap() {
+      if (grad) return grad;
+      var steps = [88, 158, 218, 255];             /* 暗 → 亮 四阶色带 */
+      var data = new Uint8Array(steps.length * 4);
+      for (var i = 0; i < steps.length; i++) {
+        data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = steps[i];
+        data[i * 4 + 3] = 255;
+      }
+      var tex = new THREE.DataTexture(data, steps.length, 1, THREE.RGBAFormat);
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.needsUpdate = true;
+      grad = tex;
+      return tex;
+    }
+    function toonize(root, opts) {
+      if (!root || !THREE.MeshToonMaterial) return 0;
+      opts = opts || {};
+      var map = gradientMap(), n = 0;
+      root.traverse(function (o) {
+        if (!o.isMesh || !o.material) return;
+        var mats = Array.isArray(o.material) ? o.material : [o.material];
+        var out = [];
+        for (var i = 0; i < mats.length; i++) {
+          var m = mats[i];
+          if (m && m.userData && m.userData.__toon) { out.push(m); continue; }
+          var t = new THREE.MeshToonMaterial({
+            color: m.color ? m.color.clone() : new THREE.Color(0xffffff),
+            map: m.map || null,
+            gradientMap: map,
+            transparent: !!m.transparent,
+            opacity: m.opacity !== undefined ? m.opacity : 1,
+            alphaMap: m.alphaMap || null,
+            alphaTest: m.alphaTest || 0,
+            side: m.side !== undefined ? m.side : THREE.FrontSide
+          });
+          if (m.alphaMap && !m.alphaTest) t.alphaTest = 0.5;   /* 镂空叶/花避免排序毛边 */
+          if (opts.keepEmissive && m.emissive) {
+            t.emissive = m.emissive.clone ? m.emissive.clone() : new THREE.Color(0x000000);
+            t.emissiveIntensity = m.emissiveIntensity || 0;
+          }
+          t.userData.__toon = true;
+          out.push(t); n++;
+        }
+        o.material = Array.isArray(o.material) ? out : out[0];
+      });
+      return n;
+    }
+    return { gradientMap: gradientMap, toonize: toonize };
+  })();
+
   /* ---------- 部件分类（基于离线分析 90 个 tripo_part_N） ---------- */
   var BRANCH = [22, 23, 24, 38, 39, 40, 47, 48, 52, 56, 57, 58, 59, 60, 65, 86];
   var BUD = [41, 51, 55, 61, 63, 64, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 83, 85, 87, 88, 89];
@@ -16821,6 +16882,7 @@ import { GLTFLoader } from 'gltfloader';
     playing: false, raf: 0, clock: null,
     anims: [], rain: null, rainUntil: 0,
     courses: [], courseCb: null,
+    orbs: null,
     autoRot: true, idleT: 0,
     drag: null, ob: null, onVis: null
   };
@@ -16845,23 +16907,198 @@ import { GLTFLoader } from 'gltfloader';
     return -1;
   }
 
-  /* ---------- 场景 ---------- */
+  /* ---------- 场景（动漫风灯组 + 蚂蚁森林式环境） ---------- */
   function buildScene() {
     var scene = new THREE.Scene();
-    var hemi = new THREE.HemisphereLight(0xfff6ec, 0x5a4a3a, 1.05);
-    scene.add(hemi);
-    var sun = new THREE.DirectionalLight(0xfff2df, 1.65);
-    sun.position.set(1.4, 2.2, 1.6);
+
+    /* 动漫灯组：柔天光打底 + 高亮暖主光（配合四阶色阶拉开明暗）+ 粉紫轮廓光 + 冷蓝补光 */
+    scene.add(new THREE.HemisphereLight(0xbfe4ff, 0xffd9ec, 0.95));
+    var sun = new THREE.DirectionalLight(0xfff3d6, 2.05);
+    sun.position.set(1.7, 2.6, 1.3);
     scene.add(sun);
-    var rim = new THREE.DirectionalLight(0xffe0ea, 0.55);
-    rim.position.set(-1.6, 0.8, -1.2);
+    var rim = new THREE.DirectionalLight(0xff9ad2, 0.95);
+    rim.position.set(-2.1, 1.3, -1.7);
     scene.add(rim);
+    var fill = new THREE.DirectionalLight(0x9ad2ff, 0.5);
+    fill.position.set(-1.2, 0.7, 1.9);
+    scene.add(fill);
+
+    buildEnv(scene);            /* 天空穹顶 / 云 / 太阳光晕 / 草地圆丘 / 树影 */
+    state.orbs = buildOrbs(scene);   /* 蚂蚁森林式能量球（点击收集） */
+
     state.scene = scene;
 
     var cam = new THREE.PerspectiveCamera(34, 1, 0.05, 30);
     cam.position.set(0, 0.26, 1.75);
     cam.lookAt(0, 0.02, 0);
     state.camera = cam;
+  }
+
+  /* ---------- 蚂蚁森林式环境：让模型「长在场景里」而不是浮在空白上 ---------- */
+  function buildEnv(scene) {
+    /* 天空穹顶：顶部天蓝 → 地平线樱粉奶油（画布渐变贴到 BackSide 大球） */
+    var cv = document.createElement('canvas'); cv.width = 4; cv.height = 128;
+    var g = cv.getContext('2d');
+    var gr = g.createLinearGradient(0, 0, 0, 128);
+    gr.addColorStop(0.00, '#8fd0ff');
+    gr.addColorStop(0.45, '#cdeaff');
+    gr.addColorStop(0.72, '#ffeef5');
+    gr.addColorStop(1.00, '#fff6ea');
+    g.fillStyle = gr; g.fillRect(0, 0, 4, 128);
+    var skyTex = new THREE.CanvasTexture(cv);
+    skyTex.colorSpace = THREE.SRGBColorSpace;
+    var sky = new THREE.Mesh(
+      new THREE.SphereGeometry(9, 32, 20),
+      new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, depthWrite: false, fog: false })
+    );
+    sky.renderOrder = -10;
+    scene.add(sky);
+
+    /* 棉花糖云：径向渐变小圆拼成的蓬松贴图，Sprite 永远面向镜头 */
+    var ccv = document.createElement('canvas'); ccv.width = 128; ccv.height = 64;
+    var cg = ccv.getContext('2d');
+    function puff(x, y, r) {
+      var rg = cg.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, 'rgba(255,255,255,.96)');
+      rg.addColorStop(0.62, 'rgba(255,255,255,.55)');
+      rg.addColorStop(1, 'rgba(255,255,255,0)');
+      cg.fillStyle = rg; cg.beginPath(); cg.arc(x, y, r, 0, 7); cg.fill();
+    }
+    puff(36, 42, 20); puff(62, 30, 25); puff(90, 42, 19); puff(50, 48, 15); puff(78, 47, 15);
+    var cloudTex = new THREE.CanvasTexture(ccv);
+    cloudTex.colorSpace = THREE.SRGBColorSpace;
+    var clouds = new THREE.Group();
+    var CLOUDS = [
+      [-2.3, 1.8, -2.0, 1.5], [2.4, 2.2, -2.8, 1.9], [-3.1, 2.7, 0.7, 1.2],
+      [2.9, 1.4, 1.0, 1.35], [0.2, 2.9, -3.5, 1.7]
+    ];
+    for (var ci = 0; ci < CLOUDS.length; ci++) {
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: cloudTex, transparent: true, opacity: 0.92, depthWrite: false, fog: false
+      }));
+      sp.position.set(CLOUDS[ci][0], CLOUDS[ci][1], CLOUDS[ci][2]);
+      sp.scale.set(CLOUDS[ci][3], CLOUDS[ci][3] * 0.5, 1);
+      clouds.add(sp);
+    }
+    scene.add(clouds);
+    state.clouds = clouds;   /* tick 里慢速漂移 */
+
+    /* 太阳光晕：暖黄大光斑挂在树后左上（正是轮廓光的来向，光效自洽） */
+    var scv = document.createElement('canvas'); scv.width = scv.height = 128;
+    var sg = scv.getContext('2d');
+    var srg = sg.createRadialGradient(64, 64, 2, 64, 64, 62);
+    srg.addColorStop(0, 'rgba(255,250,220,1)');
+    srg.addColorStop(0.30, 'rgba(255,224,150,.75)');
+    srg.addColorStop(1, 'rgba(255,214,120,0)');
+    sg.fillStyle = srg; sg.fillRect(0, 0, 128, 128);
+    var sunTex = new THREE.CanvasTexture(scv);
+    sunTex.colorSpace = THREE.SRGBColorSpace;
+    var halo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: sunTex, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+    }));
+    halo.position.set(-1.9, 2.7, -3.2);
+    halo.scale.set(1.9, 1.9, 1);
+    scene.add(halo);
+
+    /* 草地圆丘：双层草绿圆台 + 环绕小灌木和小花，顶面正好在 y=0 托住树根 */
+    var grass = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.3, 2.55, 0.16, 44),
+      new THREE.MeshToonMaterial({ color: 0x8fe0a0, gradientMap: window.SG3D_TOON.gradientMap() })
+    );
+    grass.position.y = -0.081;
+    scene.add(grass);
+    var grassSide = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.55, 2.78, 0.12, 44),
+      new THREE.MeshToonMaterial({ color: 0x74c988, gradientMap: window.SG3D_TOON.gradientMap() })
+    );
+    grassSide.position.y = -0.21;
+    scene.add(grassSide);
+    var GM = window.SG3D_TOON.gradientMap();
+    var bushMatA = new THREE.MeshToonMaterial({ color: 0x7ed690, gradientMap: GM });
+    var bushMatB = new THREE.MeshToonMaterial({ color: 0xa5ecb2, gradientMap: GM });
+    var flowerMat = new THREE.MeshToonMaterial({ color: 0xffc0d8, gradientMap: GM });
+    var BUSHES = [
+      [1.45, 0.55, 0.10, 0], [-1.55, 0.48, 0.13, 1], [1.05, -1.05, 0.09, 1],
+      [-1.0, -1.18, 0.11, 0], [0.15, 1.62, 0.08, 1], [-0.45, -1.55, 0.10, 0]
+    ];
+    for (var bi = 0; bi < BUSHES.length; bi++) {
+      var b = BUSHES[bi];
+      var bush = new THREE.Mesh(new THREE.SphereGeometry(b[2], 14, 10), b[3] ? bushMatA : bushMatB);
+      bush.position.set(b[0], b[2] * 0.55, b[1]);
+      bush.scale.y = 0.8;
+      scene.add(bush);
+      if (bi % 2 === 0) {          /* 一半灌木顶上点一朵小花 */
+        var fl = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), flowerMat);
+        fl.position.set(b[0], b[2] * 0.55 + b[2] * 0.85, b[1]);
+        scene.add(fl);
+      }
+    }
+
+    /* 树底软影盘：径向半透明绿黑，把树「压」在草地上（消除悬浮感的关键） */
+    var scv2 = document.createElement('canvas'); scv2.width = scv2.height = 128;
+    var sg2 = scv2.getContext('2d');
+    var rg2 = sg2.createRadialGradient(64, 64, 4, 64, 64, 62);
+    rg2.addColorStop(0, 'rgba(52,92,62,.38)');
+    rg2.addColorStop(0.62, 'rgba(52,92,62,.16)');
+    rg2.addColorStop(1, 'rgba(52,92,62,0)');
+    sg2.fillStyle = rg2; sg2.fillRect(0, 0, 128, 128);
+    var shTex = new THREE.CanvasTexture(scv2);
+    var shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.25, 1.25),
+      new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false, fog: false })
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.004;
+    shadow.renderOrder = -5;
+    scene.add(shadow);
+  }
+
+  /* ---------- 蚂蚁森林式能量球：绕树漂浮，点击收集 +Ng，计数持久化 ---------- */
+  var ORB_DEFS = [
+    [-0.62, 0.34, 0.46, 0, 5], [0.58, 0.54, 0.30, 1, 5], [-0.30, 0.76, -0.36, 1, 8],
+    [0.44, 0.26, -0.50, 0, 5], [0.06, 0.94, 0.40, 1, 8], [-0.76, 0.58, -0.12, 0, 5]
+  ];
+  function buildOrbs(scene) {
+    var grp = new THREE.Group();
+    var gcv = document.createElement('canvas'); gcv.width = gcv.height = 64;
+    var gg = gcv.getContext('2d');
+    var ggr = gg.createRadialGradient(32, 32, 2, 32, 32, 30);
+    ggr.addColorStop(0, 'rgba(255,255,255,.95)');
+    ggr.addColorStop(0.38, 'rgba(120,235,170,.55)');
+    ggr.addColorStop(1, 'rgba(90,220,150,0)');
+    gg.fillStyle = ggr; gg.fillRect(0, 0, 64, 64);
+    var glowTex = new THREE.CanvasTexture(gcv);
+    for (var i = 0; i < ORB_DEFS.length; i++) {
+      var d = ORB_DEFS[i];
+      var o = new THREE.Group();
+      o.position.set(d[0], d[1], d[2]);
+      var core = new THREE.Mesh(
+        new THREE.SphereGeometry(0.052, 18, 14),
+        new THREE.MeshBasicMaterial({ color: d[3] ? 0x36e08e : 0x4cc9f0 })
+      );
+      var glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, transparent: true, opacity: 0.9,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      glow.scale.set(0.30, 0.30, 1);
+      o.add(core); o.add(glow);
+      o.userData = {
+        baseX: d[0], baseY: d[1], baseZ: d[2],
+        spd: 0.7 + Math.random() * 0.7, ph: Math.random() * 6.28,
+        val: d[4], dead: false, shrinkT0: 0, popT0: 0, respawnAt: 0,
+        blue: !d[3]
+      };
+      core.userData.orb = o; glow.userData.orb = o;
+      if (i >= 4) {   /* 后两颗稍后重生出现，让页面一直有「等一会又有能量」的期待感 */
+        o.visible = false;
+        o.userData.dead = true;
+        o.userData.respawnAt = performance.now() + 14000 + i * 12000;
+      }
+      grp.add(o);
+    }
+    scene.add(grp);
+    return grp;
   }
 
   function fitCamera(box) {
@@ -16892,6 +17129,8 @@ import { GLTFLoader } from 'gltfloader';
       var root = new THREE.Group();
       var model = gltf.scene;
       model.updateMatrixWorld(true);
+      /* 动漫风：全部部件转卡通材质（须在花瓣 emissive 收集之前，之后盛放微光系统照常接管） */
+      if (window.SG3D_TOON) window.SG3D_TOON.toonize(model, { keepEmissive: true });
 
       var box = new THREE.Box3().setFromObject(model);
       var size = box.getSize(new THREE.Vector3());
@@ -17129,6 +17368,38 @@ import { GLTFLoader } from 'gltfloader';
         if (state.idleT > 2.5) state.root.rotation.y += dt * 0.12;
       }
     }
+    /* 棉花糖云慢漂移 */
+    if (state.clouds) state.clouds.rotation.y += dt * 0.008;
+    /* 能量球：漂浮呼吸 + 收集收缩 + 弹性重生 */
+    if (state.orbs) {
+      var oc = state.orbs.children;
+      for (var oi = 0; oi < oc.length; oi++) {
+        var og = oc[oi], ou = og.userData;
+        if (ou.dead) {
+          if (ou.shrinkT0 && now - ou.shrinkT0 < 240) {
+            og.scale.setScalar(Math.max(0.02, 1 - (now - ou.shrinkT0) / 240));
+          } else {
+            og.scale.setScalar(0.02);
+            if (og.visible) og.visible = false;
+            ou.shrinkT0 = 0;
+            if (now >= ou.respawnAt) {
+              ou.dead = false; og.visible = true; ou.popT0 = now;
+            }
+          }
+          continue;
+        }
+        if (ou.popT0) {                       /* easeOutBack 弹性弹出 */
+          var pp = (now - ou.popT0) / 380;
+          if (pp >= 1) { og.scale.setScalar(1); ou.popT0 = 0; }
+          else {
+            var c1 = 1.70158, c3 = c1 + 1;
+            og.scale.setScalar(Math.max(0.02, 1 + c3 * Math.pow(pp - 1, 3) + c1 * Math.pow(pp - 1, 2)));
+          }
+        }
+        og.position.y = ou.baseY + Math.sin(now * 0.001 * ou.spd + ou.ph) * 0.045;
+        og.position.x = ou.baseX + Math.sin(now * 0.0007 * ou.spd + ou.ph * 2) * 0.03;
+      }
+    }
     updateRain(now, dt);
     if (state.renderer && state.host) state.renderer.render(state.scene, state.camera);
   }
@@ -17163,11 +17434,20 @@ import { GLTFLoader } from 'gltfloader';
 
   var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   function pick(ev) {
-    if (!state.host || !state.root || !state.courseCb) return;
+    if (!state.host) return;
     var r = state.host.getBoundingClientRect();
     ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
     ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
     ray.setFromCamera(ndc, state.camera);
+    /* 能量球优先：点中即收集（蚂蚁森林式反馈） */
+    if (state.orbs) {
+      var oh = ray.intersectObjects(state.orbs.children, true);
+      for (var k = 0; k < oh.length; k++) {
+        var og2 = oh[k].object.userData && oh[k].object.userData.orb;
+        if (og2 && og2.visible && !og2.userData.dead) { collectOrb(og2, ev); return; }
+      }
+    }
+    if (!state.root || !state.courseCb) return;
     var hits = ray.intersectObjects(state.root.children, true);
     for (var i = 0; i < hits.length; i++) {
       var o = hits[i].object;
@@ -17182,6 +17462,42 @@ import { GLTFLoader } from 'gltfloader';
       }
       return;
     }
+  }
+
+  /* ---------- 能量收集（蚂蚁森林式）：收缩消失 + 飘字 + HUD 计数持久化 ---------- */
+  function collectOrb(grp, ev) {
+    var u = grp.userData;
+    if (u.dead) return;
+    u.dead = true;
+    u.shrinkT0 = performance.now();
+    u.respawnAt = u.shrinkT0 + 42000 + Math.random() * 38000;
+    addEnergy(u.val, true);
+    floatBubble('+' + u.val + 'g', ev, u.blue);
+  }
+
+  function addEnergy(v, pulse) {
+    var n = 0;
+    try { n = parseInt(localStorage.getItem('sg-youth-energy') || '0', 10) || 0; } catch (e) {}
+    n += v;
+    try { localStorage.setItem('sg-youth-energy', String(n)); } catch (e) {}
+    var el = document.getElementById('ym-energy-num');
+    if (el) el.textContent = n;
+    if (pulse) {
+      var hud = document.getElementById('ym-energy');
+      if (hud) { hud.classList.remove('yg-pulse'); void hud.offsetWidth; hud.classList.add('yg-pulse'); }
+    }
+  }
+
+  function floatBubble(txt, ev, isBlue) {
+    if (!state.host) return;
+    var r = state.host.getBoundingClientRect();
+    var b = document.createElement('div');
+    b.className = 'yg-egy-bub' + (isBlue ? ' yg-egy-bub--blue' : '');
+    b.textContent = txt;
+    b.style.left = Math.max(22, Math.min(r.width - 22, ev.clientX - r.left)) + 'px';
+    b.style.top = Math.max(26, Math.min(r.height - 30, ev.clientY - r.top)) + 'px';
+    state.host.appendChild(b);
+    setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 1200);
   }
 
   /* ---------- 尺寸自适应 ---------- */
@@ -17201,6 +17517,7 @@ import { GLTFLoader } from 'gltfloader';
       if (!host || state.failed) return;
       if (state.host === host) { M.resume(); return; }
       state.host = host;
+      addEnergy(0);   /* 回填 localStorage 里的历史能量到 HUD */
       /* 加载反馈：内嵌模型约 200MB，首次解码需数秒到数十秒，先给出可见提示（成功/失败时移除或改写） */
       try {
         var tip = document.createElement('div');
@@ -17319,20 +17636,19 @@ import { GLTFLoader } from 'gltfloader';
     ob: null, onVis: null, onMove: null
   };
 
-  /* ---------- 场景与灯光（柔和明亮：环境光拉满 + 正面主光，无重阴影） ---------- */
+  /* ---------- 场景与灯光（动漫风：柔天光 + 暖主光 + 粉紫轮廓 + 冷蓝补光，配合四阶色阶赛璐璐着色） ---------- */
   function buildScene() {
     var scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 0.62));
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xded5c8, 0.9));
-    var key = new THREE.DirectionalLight(0xffffff, 1.25);
-    key.position.set(0.5, 2.0, 2.6);
+    scene.add(new THREE.HemisphereLight(0xcdeeff, 0xffe3f0, 0.85));
+    var key = new THREE.DirectionalLight(0xfff3d6, 1.65);
+    key.position.set(0.6, 2.2, 2.4);
     scene.add(key);
-    var fill = new THREE.DirectionalLight(0xfff2e6, 0.8);
-    fill.position.set(-1.3, 1.3, 1.9);
-    scene.add(fill);
-    var rim = new THREE.DirectionalLight(0xfff0f5, 0.4);
-    rim.position.set(0.2, 1.6, -2.0);
+    var rim = new THREE.DirectionalLight(0xff9ad2, 0.9);
+    rim.position.set(-0.9, 1.9, -2.2);
     scene.add(rim);
+    var fill = new THREE.DirectionalLight(0x9ad2ff, 0.55);
+    fill.position.set(-1.6, 1.0, 1.6);
+    scene.add(fill);
     state.scene = scene;
     state.camera = new THREE.PerspectiveCamera(34, 1, 0.05, 30);
     applyFrame(state.frame);
@@ -17549,6 +17865,8 @@ import { GLTFLoader } from 'gltfloader';
       if (state.failed) return;
       try {
         var root = skinModel(gltf.scene); /* 旋转已烘进几何体：模型在几何空间即面朝 +Z */
+        /* 动漫风：人物全身部件转卡通材质（四阶色阶），蒙皮绑定不受影响 */
+        if (window.SG3D_TOON) window.SG3D_TOON.toonize(root, { keepEmissive: true });
         state.modelRoot = root;
         state.scene.add(root);
         state.ready = true;
@@ -17769,9 +18087,11 @@ import { GLTFLoader } from 'gltfloader';
 
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(38, W / H, 0.01, 50);
-    scene.add(new THREE.AmbientLight(0xffffff, 1.15));
-    var key = new THREE.DirectionalLight(0xfff0f6, 1.5); key.position.set(2, 3, 4); scene.add(key);
-    var fill = new THREE.DirectionalLight(0xffd9ea, 0.7); fill.position.set(-3, 1, -2); scene.add(fill);
+    /* 动漫风灯组：柔天光 + 暖主光 + 粉紫轮廓 + 冷蓝补光（与玉兰/安安统一） */
+    scene.add(new THREE.HemisphereLight(0xcdeeff, 0xffe3f0, 0.9));
+    var key = new THREE.DirectionalLight(0xfff3d6, 1.55); key.position.set(1.6, 2.6, 2.6); scene.add(key);
+    var rim = new THREE.DirectionalLight(0xff9ad2, 0.85); rim.position.set(-2.2, 1.4, -2.0); scene.add(rim);
+    var fill = new THREE.DirectionalLight(0x9ad2ff, 0.45); fill.position.set(-1.6, 0.9, 1.6); scene.add(fill);
 
     new GLTFLoader().load(window.SG3D_DATA.parrot, function (gltf) {
       try {
@@ -17785,6 +18105,7 @@ import { GLTFLoader } from 'gltfloader';
         box.setFromObject(m);
         var c = box.getCenter(new THREE.Vector3());
         m.position.x -= c.x; m.position.z -= c.z; m.position.y -= box.min.y;
+        if (window.SG3D_TOON) window.SG3D_TOON.toonize(m, { keepEmissive: true }); /* 动漫风：转卡通材质 */
         scene.add(m);
 
         var dist = 1.0 / Math.tan(38 * Math.PI / 360) * 0.62;
@@ -18094,6 +18415,61 @@ body.youth-mode .rg-petals i:nth-child(3n) {
 }
 body.youth-mode .rg-petals i:nth-child(4n) {
   background:radial-gradient(circle at 30% 30%, #e8fff4, #a8ecd0 58%, #7edea0);
+}
+
+/* ── 蚂蚁森林式花园舞台：圆角画窗 + 能量收集 HUD ── */
+body.youth-mode .yg-stage {
+  overflow:hidden; border-radius:28px;
+  border:3px solid #a8dcff;
+  background:linear-gradient(180deg,#bfe9ff 0%,#e8f7ff 58%,#eafaf0 100%);
+  box-shadow:0 20px 46px -20px rgba(88,150,220,.5), inset 0 0 0 6px rgba(255,255,255,.5);
+}
+body.youth-mode .yg-halo { border:none; animation:none; box-shadow:none;
+  background:radial-gradient(closest-side, rgba(255,255,255,.5), rgba(255,244,250,0) 74%); }
+
+/* 能量胶囊 HUD：左上角，收集时 Q 弹一下 */
+body.youth-mode .yg-energy {
+  position:absolute; top:10px; left:10px; z-index:7;
+  display:flex; align-items:center; gap:5px;
+  padding:7px 13px 7px 10px; border-radius:999px;
+  background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(234,250,241,.94));
+  border:2.5px solid #7edea0; box-shadow:3px 4px 0 rgba(126,222,160,.35);
+  font-family:var(--font-main,-apple-system,"PingFang SC","Segoe UI",sans-serif);
+  font-size:14px; font-weight:800; line-height:1; color:#2c7a4b;
+  pointer-events:none; user-select:none;
+}
+body.youth-mode .yg-energy .yg-energy-ico { font-size:16px; filter:drop-shadow(0 0 6px rgba(255,214,90,.85)); }
+body.youth-mode .yg-energy b { font-size:16px; color:#22a05c; font-variant-numeric:tabular-nums; }
+body.youth-mode .yg-energy .yg-energy-unit { font-size:12px; color:#4aa771; }
+body.youth-mode .yg-energy .yg-energy-hint { font-size:11px; color:#6fae88; font-weight:600; }
+body.youth-mode .yg-energy.yg-pulse { animation:ygHudPulse .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes ygHudPulse { 0%{transform:scale(1)} 35%{transform:scale(1.16)} 100%{transform:scale(1)} }
+
+/* 收集飘字：+Ng 从点击处冒出、上浮消散 */
+body.youth-mode .yg-egy-bub {
+  position:absolute; z-index:9; pointer-events:none; user-select:none;
+  font-family:var(--font-main,-apple-system,"PingFang SC","Segoe UI",sans-serif);
+  font-size:15px; font-weight:900; color:#1fa35c;
+  text-shadow:0 1px 0 #fff, 0 0 12px rgba(126,222,160,.95);
+  animation:ygEgyUp 1.1s cubic-bezier(.22,.9,.36,1) forwards;
+}
+body.youth-mode .yg-egy-bub.yg-egy-bub--blue { color:#1e8fd8; text-shadow:0 1px 0 #fff, 0 0 12px rgba(120,205,255,.95); }
+@keyframes ygEgyUp {
+  0%   { opacity:0; transform:translate(-50%,0) scale(.5); }
+  18%  { opacity:1; transform:translate(-50%,-14px) scale(1.25); }
+  100% { opacity:0; transform:translate(-50%,-74px) scale(1); }
+}
+
+/* 舞台角落贴纸徽章：轻旋转，像手账贴纸 */
+body.youth-mode .yg-badge {
+  position:absolute; top:12px; right:10px; z-index:7;
+  padding:7px 12px; border-radius:14px 14px 14px 4px;
+  background:linear-gradient(135deg,#ffe3f0,#ffd0e4);
+  border:2.5px solid #ff9ac6; color:#c2447e;
+  font-family:var(--font-main,-apple-system,"PingFang SC","Segoe UI",sans-serif);
+  font-size:12px; font-weight:800; line-height:1;
+  transform:rotate(3deg); box-shadow:3px 3px 0 rgba(255,143,192,.35);
+  pointer-events:none; user-select:none;
 }
 
 /* ════════════════════════════════════════════
