@@ -17460,9 +17460,27 @@ import { GLTFLoader } from 'gltfloader';
       for (var pj = 0; pj < plist.length; pj++) PART_MAP[plist[pj]] = pbi;
     }
 
+    /* KHR_mesh_quantization 兼容：量化 GLB 的 POSITION/NORMAL 是 int16 normalized（±32767 编码，[-1,1] 语义），
+       真实坐标的恢复变换在 node 矩阵上。three.js applyMatrix4 写回 Int16Array 时会把 ±0.5 级真实坐标
+       normalize 截断成 0，几何彻底坍缩（玉兰树/鹦鹉不做 CPU 烘焙故无此问题）。
+       先把量化属性换成 float32（[-1,1] 语义值），后续烘焙/包围盒/蒙皮与原始模型路径完全一致 */
+    function dequantizeAttrs(geo) {
+      ['position', 'normal', 'tangent'].forEach(function (nm) {
+        var a = geo.attributes[nm];
+        if (!a || !a.normalized || a.isInterleavedBufferAttribute || a.array.constructor === Float32Array) return;
+        var div = a.array.constructor === Int16Array ? 32767 : 65535;
+        var f = new Float32Array(a.count * a.itemSize);
+        for (var q = 0; q < f.length; q++) {
+          var v = a.array[q] / div;
+          f[q] = v < -1 ? -1 : (v > 1 ? 1 : v);
+        }
+        geo.setAttribute(nm, new THREE.BufferAttribute(f, a.itemSize));
+      });
+    }
     for (var mi = 0; mi < meshes.length; mi++) {
       var src = meshes[mi];
       var g = src.geometry;
+      dequantizeAttrs(g);
       g.applyMatrix4(src.matrixWorld);   /* 烘焙世界变换 */
       g.applyMatrix4(norm);              /* 归一化到身高 1.6 */
 
