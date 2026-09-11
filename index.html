@@ -4694,7 +4694,7 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
         <div class="yg-energy" id="ym-energy" aria-live="polite" title="能量来自每日签到与学完课程 · 连续签到有加成">
           <span class="yg-orb"><i class="yg-orb-hi" aria-hidden="true"></i><em class="yg-orb-bolt" aria-hidden="true">⚡</em>
             <span class="yg-orb-val"><b id="ym-energy-num">0</b><span class="yg-energy-unit">g</span></span></span>
-          <span class="yg-energy-hint">签到与听课可得</span>
+          <span class="yg-energy-hint">签到与听课所得</span>
         </div>
         <div class="yg-badge">🌳 玉兰秘密花园</div>
         <div id="ym-magnolia" aria-label="3D 玉兰花树 · 拖动可旋转"></div>
@@ -4710,7 +4710,7 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
         <span class="pg-dot" id="ym-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span class="yg-ringtxt" id="ym-prog-txt">0 / 8 生长阶段</span>
       </div>
-      <p class="yg-hint">拖一拖，玉兰树会转圈圈 · 点一点会发光的能量球收集能量 · 学完一课，生命之雨就会落下，小树长高一截、枝头多开一朵</p>
+      <p class="yg-hint">拖一拖，玉兰树会转圈圈 · 能量靠每日签到与听课获得 · 学完一课，生命之雨就会落下，小树长高一截、枝头多开一朵</p>
       <div class="ym-courses-head">
         <h3>生命课堂 · 生命与死亡教育</h3>
         <span class="ym-note">学完一课，生命之雨就会落下，小树长高一截</span>
@@ -17215,6 +17215,23 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
     }
   });
 
+  /* v3.9 修复课程卡消失：#youth 直达时 applyMode 在本监听器注册前（同块更早位置）
+     已同步派发 viewchange → 监听器错过事件 → #ym-grid 一直为空。
+     这里在监听器就位后兜底：若青少年视图已激活，补跑一次完整初始化。 */
+  (function youthDirectEntryGuard() {
+    try {
+      var v = document.getElementById('view-youth');
+      if (v && v.classList.contains('active')) {
+        document.body.classList.add('youth-view-on');
+        renderYouthGrid();
+        paintProgress();
+        if (tipIdx < 0) setBubble(WELCOME);
+        ensureMagnolia();
+        startTips();
+      }
+    } catch (e) { console.warn('[Youth] 直达兜底初始化失败', e); }
+  })();
+
   /* ---------- 小花园 Dock：三个专属页切换 ---------- */
   var yDock = document.getElementById('yb-dock');
   if (yDock) {
@@ -17364,7 +17381,7 @@ import { GLTFLoader } from 'gltfloader';
     playing: false, raf: 0, clock: null,
     anims: [], rain: null, rainUntil: 0,
     courses: [], courseCb: null,
-    orbs: null,
+    orbs: null,   /* v3.9 已移除 3D 能量球：能量统一走 2D HUD（#ym-energy），仅签到与听课可得 */
     autoRot: true, idleT: 0,
     drag: null, ob: null, onVis: null
   };
@@ -17406,7 +17423,6 @@ import { GLTFLoader } from 'gltfloader';
     scene.add(fill);
 
     buildEnv(scene);            /* 天空穹顶 / 云 / 太阳光晕 / 草地圆丘 / 树影 */
-    state.orbs = buildOrbs(scene);   /* 蚂蚁森林式能量球（点击收集） */
 
     state.scene = scene;
 
@@ -17534,53 +17550,6 @@ import { GLTFLoader } from 'gltfloader';
     shadow.position.y = 0.004;
     shadow.renderOrder = -5;
     scene.add(shadow);
-  }
-
-  /* ---------- 蚂蚁森林式能量球：绕树漂浮，点击收集 +Ng，计数持久化 ---------- */
-  var ORB_DEFS = [
-    [-0.62, 0.34, 0.46, 0, 5], [0.58, 0.54, 0.30, 1, 5], [-0.30, 0.76, -0.36, 1, 8],
-    [0.44, 0.26, -0.50, 0, 5], [0.06, 0.94, 0.40, 1, 8], [-0.76, 0.58, -0.12, 0, 5]
-  ];
-  function buildOrbs(scene) {
-    var grp = new THREE.Group();
-    var gcv = document.createElement('canvas'); gcv.width = gcv.height = 64;
-    var gg = gcv.getContext('2d');
-    var ggr = gg.createRadialGradient(32, 32, 2, 32, 32, 30);
-    ggr.addColorStop(0, 'rgba(255,255,255,.95)');
-    ggr.addColorStop(0.38, 'rgba(120,235,170,.55)');
-    ggr.addColorStop(1, 'rgba(90,220,150,0)');
-    gg.fillStyle = ggr; gg.fillRect(0, 0, 64, 64);
-    var glowTex = new THREE.CanvasTexture(gcv);
-    for (var i = 0; i < ORB_DEFS.length; i++) {
-      var d = ORB_DEFS[i];
-      var o = new THREE.Group();
-      o.position.set(d[0], d[1], d[2]);
-      var core = new THREE.Mesh(
-        new THREE.SphereGeometry(0.052, 18, 14),
-        new THREE.MeshBasicMaterial({ color: d[3] ? 0x36e08e : 0x4cc9f0 })
-      );
-      var glow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex, transparent: true, opacity: 0.9,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      }));
-      glow.scale.set(0.30, 0.30, 1);
-      o.add(core); o.add(glow);
-      o.userData = {
-        baseX: d[0], baseY: d[1], baseZ: d[2],
-        spd: 0.7 + Math.random() * 0.7, ph: Math.random() * 6.28,
-        val: d[4], dead: false, shrinkT0: 0, popT0: 0, respawnAt: 0,
-        blue: !d[3]
-      };
-      core.userData.orb = o; glow.userData.orb = o;
-      if (i >= 4) {   /* 后两颗稍后重生出现，让页面一直有「等一会又有能量」的期待感 */
-        o.visible = false;
-        o.userData.dead = true;
-        o.userData.respawnAt = performance.now() + 14000 + i * 12000;
-      }
-      grp.add(o);
-    }
-    scene.add(grp);
-    return grp;
   }
 
   function fitCamera(box) {
@@ -17852,36 +17821,6 @@ import { GLTFLoader } from 'gltfloader';
     }
     /* 棉花糖云慢漂移 */
     if (state.clouds) state.clouds.rotation.y += dt * 0.008;
-    /* 能量球：漂浮呼吸 + 收集收缩 + 弹性重生 */
-    if (state.orbs) {
-      var oc = state.orbs.children;
-      for (var oi = 0; oi < oc.length; oi++) {
-        var og = oc[oi], ou = og.userData;
-        if (ou.dead) {
-          if (ou.shrinkT0 && now - ou.shrinkT0 < 240) {
-            og.scale.setScalar(Math.max(0.02, 1 - (now - ou.shrinkT0) / 240));
-          } else {
-            og.scale.setScalar(0.02);
-            if (og.visible) og.visible = false;
-            ou.shrinkT0 = 0;
-            if (now >= ou.respawnAt) {
-              ou.dead = false; og.visible = true; ou.popT0 = now;
-            }
-          }
-          continue;
-        }
-        if (ou.popT0) {                       /* easeOutBack 弹性弹出 */
-          var pp = (now - ou.popT0) / 380;
-          if (pp >= 1) { og.scale.setScalar(1); ou.popT0 = 0; }
-          else {
-            var c1 = 1.70158, c3 = c1 + 1;
-            og.scale.setScalar(Math.max(0.02, 1 + c3 * Math.pow(pp - 1, 3) + c1 * Math.pow(pp - 1, 2)));
-          }
-        }
-        og.position.y = ou.baseY + Math.sin(now * 0.001 * ou.spd + ou.ph) * 0.045;
-        og.position.x = ou.baseX + Math.sin(now * 0.0007 * ou.spd + ou.ph * 2) * 0.03;
-      }
-    }
     updateRain(now, dt);
     if (state.renderer && state.host) state.renderer.render(state.scene, state.camera);
   }
@@ -17921,14 +17860,6 @@ import { GLTFLoader } from 'gltfloader';
     ndc.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
     ndc.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
     ray.setFromCamera(ndc, state.camera);
-    /* 能量球优先：点中即收集（蚂蚁森林式反馈） */
-    if (state.orbs) {
-      var oh = ray.intersectObjects(state.orbs.children, true);
-      for (var k = 0; k < oh.length; k++) {
-        var og2 = oh[k].object.userData && oh[k].object.userData.orb;
-        if (og2 && og2.visible && !og2.userData.dead) { collectOrb(og2, ev); return; }
-      }
-    }
     if (!state.root || !state.courseCb) return;
     var hits = ray.intersectObjects(state.root.children, true);
     for (var i = 0; i < hits.length; i++) {
@@ -17944,17 +17875,6 @@ import { GLTFLoader } from 'gltfloader';
       }
       return;
     }
-  }
-
-  /* ---------- 能量收集（蚂蚁森林式）：收缩消失 + 飘字 + HUD 计数持久化 ---------- */
-  function collectOrb(grp, ev) {
-    var u = grp.userData;
-    if (u.dead) return;
-    u.dead = true;
-    u.shrinkT0 = performance.now();
-    u.respawnAt = u.shrinkT0 + 42000 + Math.random() * 38000;
-    /* 能量球改为纯装饰：不再加能量，能量只来自签到与听课 */
-    floatBubble(u.blue ? '✦' : '✿', ev, u.blue);
   }
 
   function addEnergy(v, pulse) {
