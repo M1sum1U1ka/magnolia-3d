@@ -17199,6 +17199,57 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
     setBubble(TIPS[tipIdx]);
   }
 
+  /* v3.9.1 · 2D 漂浮能量球：替代原 3D 蚂蚁森林球，与左上角 HUD 圆球同款卡通样式。
+     挂在 .yg-stage 内（position:relative）；点击 Q 弹收集（纯装饰，能量仍只来自签到与听课），
+     约 35~55 秒后原地重生。各球错开漂浮方向与节奏，随花一起呼吸。 */
+  var ORB2D_DEFS = [
+    { l: 20, t: 24, dx: 9, dy: -12, f: 5.2 },
+    { l: 76, t: 30, dx: -10, dy: -9, f: 4.4 },
+    { l: 31, t: 56, dx: 8, dy: -14, f: 5.6 },
+    { l: 67, t: 60, dx: -9, dy: 9, f: 4.8 },
+    { l: 13, t: 50, dx: 10, dy: 7, f: 5.0 }
+  ];
+  function orb2dBubbleText(ev) {
+    var host = document.getElementById('ym-magnolia');
+    if (!host) return;
+    var r = host.getBoundingClientRect();
+    var b = document.createElement('div');
+    b.className = 'yg-egy-bub';
+    b.textContent = '✦';
+    b.style.left = Math.max(22, Math.min(r.width - 22, ev.clientX - r.left)) + 'px';
+    b.style.top = Math.max(26, Math.min(r.height - 30, ev.clientY - r.top)) + 'px';
+    host.appendChild(b);
+    setTimeout(function () { if (b.parentNode) b.parentNode.removeChild(b); }, 1200);
+  }
+  function seed2dOrbs() {
+    var stage = document.querySelector('#ypanel-garden.on .yg-stage') || document.querySelector('#ypanel-garden .yg-stage');
+    if (!stage || stage.__orb2dSeeded) return;
+    stage.__orb2dSeeded = true;
+    ORB2D_DEFS.forEach(function (d) {
+      var o = document.createElement('span');
+      o.className = 'yg-orb2d';
+      o.setAttribute('aria-hidden', 'true');
+      o.title = '能量球 · 签到与听课所得';
+      o.style.left = d.l + '%';
+      o.style.top = d.t + '%';
+      o.style.setProperty('--dx', d.dx + 'px');
+      o.style.setProperty('--dy', d.dy + 'px');
+      o.style.setProperty('--f', d.f + 's');
+      o.style.animationDelay = (-Math.random() * d.f).toFixed(2) + 's';
+      o.addEventListener('click', function (ev) {
+        if (o.classList.contains('pop')) return;
+        o.classList.add('pop');
+        try { orb2dBubbleText(ev); } catch (e) {}
+        setTimeout(function () {
+          o.hidden = true;
+          o.classList.remove('pop');
+          setTimeout(function () { o.hidden = false; }, 35000 + Math.random() * 20000);
+        }, 520);
+      });
+      stage.appendChild(o);
+    });
+  }
+
   window.addEventListener('viewchange', function (ev) {
     var name = (ev && ev.detail) || '';
     /* 青少年视图：隐藏正常版导航，只留小花园自己的顶栏 + Dock */
@@ -17208,6 +17259,7 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
       paintProgress();
       if (tipIdx < 0) setBubble(WELCOME);
       ensureMagnolia();
+      seed2dOrbs();
       startTips();
     } else {
       stopTips();
@@ -17227,6 +17279,7 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
         paintProgress();
         if (tipIdx < 0) setBubble(WELCOME);
         ensureMagnolia();
+        seed2dOrbs();
         startTips();
       }
     } catch (e) { console.warn('[Youth] 直达兜底初始化失败', e); }
@@ -19715,6 +19768,30 @@ body.youth-mode .yg-energy.yg-pulse .yg-orb{animation:ygOrbPop .55s cubic-bezier
 @keyframes ygOrbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes ygOrbPop{0%{transform:scale(1)}38%{transform:scale(1.22)}70%{transform:scale(.94)}100%{transform:scale(1)}}
 @keyframes ygBoltTw{0%,100%{opacity:.9;transform:scale(1) rotate(-8deg)}50%{opacity:1;transform:scale(1.18) rotate(10deg)}}
+
+/* ═══ v3.9.1 · 2D 漂浮能量球（替代原 3D 蚂蚁森林球）：与左上角 HUD 圆球同款卡通样式 ═══ */
+.yg-orb2d{
+  position:absolute; z-index:6; width:34px; height:34px; border-radius:50%;
+  background:#8FE8B6; border:3px solid #1F7A4A;
+  box-shadow:0 4px 0 #17854F, 0 8px 16px -6px rgba(31,122,74,.5);
+  cursor:pointer; -webkit-tap-highlight-color:transparent;
+  animation:ygOrb2dFloat var(--f,4.8s) ease-in-out infinite;
+  transition:filter .25s;
+}
+.yg-orb2d:hover{filter:brightness(1.1);}
+.yg-orb2d::before{content:''; position:absolute; left:7px; top:5px; width:11px; height:6px;
+  border-radius:50%; background:#fff; transform:rotate(-16deg);}   /* 同款实心高光椭圆 */
+.yg-orb2d::after{content:'⚡'; position:absolute; right:-5px; top:-7px; font-style:normal; font-size:12px;
+  filter:drop-shadow(0 0 4px rgba(255,214,90,.9)); animation:ygBoltTw 2.6s ease-in-out infinite;}   /* 同款闪电角标 */
+.yg-orb2d.pop{animation:ygOrb2dPop .5s cubic-bezier(.34,1.56,.64,1) forwards; pointer-events:none;}
+.yg-orb2d[hidden]{display:none;}
+@keyframes ygOrb2dFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(var(--dx,6px),var(--dy,-10px))}}
+@keyframes ygOrb2dPop{0%{transform:scale(1)}38%{transform:scale(1.35)}100%{transform:scale(0);opacity:0}}
+@media (prefers-reduced-motion: reduce){
+  .yg-orb2d{animation:none;}
+  .yg-orb2d.pop{animation:ygOrb2dPop .2s ease-out forwards;}
+  .yg-orb2d::after{animation:none;}
+}
 
 /* 收集飘字：+Ng 从点击处冒出、上浮消散 */
 body.youth-mode .yg-egy-bub {
