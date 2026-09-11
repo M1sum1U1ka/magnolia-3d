@@ -11883,12 +11883,6 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
      光始终在画面外沿椭圆轨道运行，柔和暖光从边缘渗入，
      只为凸显 Liquid Glass，不喧宾夺主 ---------- */
   var ORBIT = { T: 52, a0: -2.35619449, m: 0.62, col: [0.90, 0.80, 0.64], r: 0.60, i: 0.55 };
-  function orbitLight(t) {
-    var asp = (W > 0 && H > 0) ? W / H : 1.78;
-    var th = ORBIT.a0 + (t / ORBIT.T) * 6.2831853;
-    return [asp * 0.5 + Math.cos(th) * (asp * 0.5 + ORBIT.m), 0.5 + Math.sin(th) * (0.5 + ORBIT.m)];
-  }
-
   /* ---------- FSR3 超分辨率模式（AMD EASU+RCAS 内核 · 档位循环） ---------- */
   var FSR3 = [
     { id: 'off', name: '关闭', scale: 1 },
@@ -12835,8 +12829,6 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
   var rafId = 0, curX = -100, curY = -100, tgtX = -100, tgtY = -100;
   var cleanups = [];
 
-  function isFlat() { return document.documentElement.classList.contains('style-flat'); }
-
   /* ① 滚动进度条 */
   function onScroll() {
     if (!prog) return;
@@ -13194,7 +13186,6 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
   function v3(x, y, z) { return [x, y, z]; }
   function vNorm(v) { var l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
   function vCross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
-  function vDot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
   function clamp(x, a, b) { return x < a ? a : (x > b ? b : x); }
   function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -17297,6 +17288,7 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
       });
       $$s('button[data-ypanel]', yDock).forEach(function (b) { b.classList.toggle('on', b === btn); });
       if (key === 'garden') ensureMagnolia();
+      else if (window.SG3DMagnolia) window.SG3DMagnolia.pause();   /* v3.9.2 性能：离开花园页彻底停玉兰渲染循环 */
       if (key === 'me') paintProgress();
       window.scrollTo(0, 0);
     });
@@ -17875,7 +17867,8 @@ import { GLTFLoader } from 'gltfloader';
     /* 棉花糖云慢漂移 */
     if (state.clouds) state.clouds.rotation.y += dt * 0.008;
     updateRain(now, dt);
-    if (state.renderer && state.host) state.renderer.render(state.scene, state.camera);
+    /* v3.9.2 性能：host 隐藏（课堂/手账页签、切走模式后残留）时跳过渲染，不再白烧 GPU */
+    if (state.renderer && state.host && state.host.isConnected && state.host.offsetWidth > 0) state.renderer.render(state.scene, state.camera);
   }
 
   /* ---------- 交互：拖拽旋转 + 花瓣点击开课 ---------- */
@@ -18947,18 +18940,6 @@ import { GLTFLoader } from 'gltfloader';
     return B;
   }
 
-  /* 点到线段距离的平方 */
-  function segDist2(px, py, pz, a, c) {
-    var ax = a[0], ay = a[1], az = a[2];
-    var dx = c[0] - ax, dy = c[1] - ay, dz = c[2] - az;
-    var vx = px - ax, vy = py - ay, vz = pz - az;
-    var len2 = dx * dx + dy * dy + dz * dz || 1e-9;
-    var u = (vx * dx + vy * dy + vz * dz) / len2;
-    u = u < 0 ? 0 : (u > 1 ? 1 : u);
-    var qx = vx - dx * u, qy = vy - dy * u, qz = vz - dz * u;
-    return qx * qx + qy * qy + qz * qz;
-  }
-
   /* Tripo 部件名：GLB 中节点名为 tripo_part_N、网格名为 Mesh_N，沿父链向上查找 */
   function partNameOf(o) {
     var n = o;
@@ -19180,6 +19161,9 @@ import { GLTFLoader } from 'gltfloader';
     state.renderer.setSize(w, h, false);
     state.camera.aspect = w / h;
     state.camera.updateProjectionMatrix();
+    /* v3.9.2 性能：缓存浮球矩形（fixed 定位不受滚动影响，尺寸变化由 ResizeObserver 触发本函数刷新），
+       避免全页 mousemove 每次强制布局回流 */
+    try { state.rect = state.ball.getBoundingClientRect(); } catch (e) {}
   }
 
   /* ---------- 启动 ---------- */
@@ -19212,9 +19196,9 @@ import { GLTFLoader } from 'gltfloader';
     state.ob = new ResizeObserver(resize);
     state.ob.observe(ball);
 
-    /* 鼠标跟随（全页监听，视线望向相对浮球的方向） */
+    /* 鼠标跟随（全页监听，视线望向相对浮球的方向）；v3.9.2 改用缓存矩形，消除高频回流 */
     state.onMove = function (e) {
-      var b = state.ball.getBoundingClientRect();
+      var b = state.rect || (state.rect = state.ball.getBoundingClientRect());
       state.look.x = clamp((e.clientX - (b.left + b.width / 2)) / 280, -1, 1);
       state.look.y = clamp((e.clientY - (b.top + b.height / 2)) / 280, -1, 1);
     };
