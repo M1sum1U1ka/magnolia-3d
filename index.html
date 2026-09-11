@@ -2865,6 +2865,9 @@ a { color: var(--accent-deep); text-decoration: none; }
 .sign-actions { display: flex; justify-content: flex-end; margin-top: 0.6rem; }
 .nav-user { display: flex; align-items: center; gap: 0.4rem; padding: 0.42rem 0.9rem; border-radius: 20px; cursor: pointer; background: var(--sage-soft); color: var(--sage-deep); font-size: 0.85rem; font-weight: 700; transition: 0.2s; max-width: 11rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .nav-user:hover { background: var(--sage); color: rgb(255, 255, 255); }
+/* v3.5 模式切换键：虚线描边 + 暖色悬停，与焦糖流金主题同族 */
+.nav-mode { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.42rem 0.9rem; border-radius: 20px; cursor: pointer; border: 1.5px dashed var(--sage); background: var(--surface); color: var(--sage-deep); font-size: 0.85rem; font-weight: 700; font-family: inherit; transition: 0.2s; }
+.nav-mode:hover { background: var(--sage); color: rgb(255, 255, 255); border-style: solid; transform: translateY(-1px); }
 .nav-right { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 .nav .hotline-btn { margin-left: 0px; }
 .rel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.4rem; align-items: start; }
@@ -3808,6 +3811,8 @@ html.lg-warp .backtop, html.lg-warp .offline-badge, html.lg-warp .toast { backdr
   .nav .hotline-btn { padding: 0.4rem 0.66rem; flex-shrink: 0; }
   .nav .hotline-btn span.t { display: none; }
   .nav-user { padding: 0.4rem 0.66rem; font-size: 0.78rem; flex-shrink: 0; }
+  .nav-mode { padding: 0.4rem 0.66rem; font-size: 0.78rem; flex-shrink: 0; }
+  .nav-mode .t { display: none; }
   .nav-gear { flex-shrink: 0; }
   .wrap { padding-left: 1.05rem; padding-right: 1.05rem; }
   .view .wrap { padding-bottom: 7rem; }
@@ -4434,6 +4439,7 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
     <a href="#relations" data-nav="relations">亲友</a>
   </div>
   <div class="nav-right">
+    <button class="nav-mode" id="nav-mode-btn" type="button" title="切换到青少年版 / 长者版">🔄<span class="t">切换模式</span></button>
     <button class="nav-user" id="nav-user" type="button" title="我的账号与亲友">👤 AUGPara</button>
     <a href="#care" class="hotline-btn">☎ <span class="t">24小时热线</span></a>
     <button class="nav-gear" id="nav-gear" type="button" aria-label="打开设置" title="设置">
@@ -4655,9 +4661,9 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
 
   <nav class="yb-dock" id="yb-dock" aria-label="小花园导航">
     <button type="button" data-ypanel="garden" class="on"><i>🌷</i><span>花园</span></button>
-    <button type="button" data-ypanel="courses"><i>📚</i><span>课堂</span></button>
     <button type="button" data-ypanel="bottle"><i>🫙</i><span>漂流瓶</span></button>
     <button type="button" data-ypanel="park"><i>🎡</i><span>乐园</span></button>
+    <button type="button" data-ypanel="buddies"><i>🤝</i><span>小伙伴</span></button>
     <button type="button" data-ypanel="me"><i>🌸</i><span>我的</span></button>
   </nav>
 
@@ -4687,20 +4693,12 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
         <span class="yg-ringtxt" id="ym-prog-txt">0 / 8 生长阶段</span>
       </div>
       <p class="yg-hint">拖一拖，玉兰树会转圈圈 · 点一点会发光的能量球收集能量 · 学完一课，生命之雨就会落下，小树长高一截、枝头多开一朵</p>
-      <!-- 课程入口：就种在玉兰旁边，点开即学 -->
-      <div class="yg-courses">
-        <div class="yg-courses-head"><b>📚 课程入口</b><span>就种在玉兰旁边 · 点开即学</span></div>
-        <div class="yg-course-row" id="ym-garden-courses"></div>
+      <div class="ym-courses-head">
+        <h3>生命课堂 · 生命与死亡教育</h3>
+        <span class="ym-note">学完一课，生命之雨就会落下，小树长高一截</span>
       </div>
+      <div class="ym-grid" id="ym-grid"></div>
       <!-- 安安对话框已移除：安安说的话直接显示在右下角人物旁边的气泡里 -->
-    </div>
-  </section>
-
-  <!-- 页 2 · 课堂：八节课养成卡片（青少年 + 成人版全量） -->
-  <section class="ypanel" id="ypanel-courses">
-    <div class="yp-inner">
-      <div class="yp-head"><h3>🌱 生命课堂</h3><span>八节课，八个生长阶段 · 青少年与成人版都在 · 点开卡片就开始</span></div>
-      <div class="yb-list" id="ym-grid"></div>
     </div>
   </section>
 
@@ -4772,7 +4770,40 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
     </div>
   </section>
 
-  <!-- 页 3 · 我的：小手账 + 出门 -->
+  <!-- 页 3 · 小伙伴：与标准版「亲友」共用同一关系数据层（用户码 / 名单 / 漂流瓶收件人完全打通） -->
+  <section class="ypanel" id="ypanel-buddies">
+    <div class="yp-inner">
+      <div class="yp-head"><h3>🤝 我的小伙伴</h3><span>和「亲友」是同一份名单 · 加好了就能互寄漂流瓶</span></div>
+      <div class="bd-grid">
+        <div class="bd-card">
+          <h4>🎫 我的邀请码</h4>
+          <div class="code-box bd-codebox"><span class="cb-code" id="bd-my-code">SG-······</span><button class="cb-btn" id="bd-copy" type="button">复制号码</button></div>
+          <p class="bd-note">把这个码告诉小伙伴，请 TA 在 TA 的「小伙伴」页里加上你；加好之后，你的漂流瓶就能漂到 TA 手里啦 ✿</p>
+          <form class="bd-form" id="bd-form" autocomplete="off">
+            <input class="bd-input" id="bd-code" placeholder="输入小伙伴的邀请码（SG- 开头）" maxlength="9">
+            <div class="bd-row">
+              <select class="bd-input" id="bd-type">
+                <option value="frd">好朋友</option>
+                <option value="sib">兄弟姐妹</option>
+                <option value="kin">亲戚</option>
+                <option value="custom">自定义称呼</option>
+              </select>
+              <input class="bd-input" id="bd-label" placeholder="怎么称呼TA" style="display:none">
+            </div>
+            <button class="bd-add" id="bd-add" type="submit">🤝 加为小伙伴</button>
+          </form>
+          <p class="bd-req-note" id="bd-req-note"></p>
+        </div>
+        <div class="bd-card">
+          <h4>🌼 小伙伴列表 <span class="pk-streak" id="bd-count">0 位</span></h4>
+          <div class="bd-list" id="bd-list"></div>
+          <p class="bd-tip">💡 小伙伴和标准版「亲友」完全打通：在这里加的人，亲友页也看得到；TA 能收你的漂流瓶，也能收到你的感悟信。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页 4 · 我的：小手账 + 出门 -->
   <section class="ypanel" id="ypanel-me">
     <div class="yp-inner">
       <div class="yp-head"><h3>🌼 我的花园手账</h3><span>安安帮你记着每一步</span></div>
@@ -5968,186 +5999,180 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
         takeaways: ['悲伤的路径没有标准答案，反复不代表失败', '找到自己的"说出口"方式：聊天、写日记、做饭都算', '被爱过这件事，不会因为结束而作废', '陪伴朋友不需要完美的话，"我在"就够']
       },
       {
-        tag: '情绪认知', title: '情绪天气预报',
-        desc: '情绪没有好坏，只有晴天雨天。学会给自己的心里天气预报，就不会被突然的暴雨淋个措手不及。',
-        meta: '图文 7分钟 · 练习 1个', minutes: 7,
-        intro: '你有没有过这种时候：早上还好好的，下午一点小事就炸了？其实情绪像天气——它有自己的系统，会移动、会变化，而且，它是可以被预报的。',
-        sections: [
-          { h: '心里也有一座气象站', ps: [
-            '愤怒像雷阵雨，来得快声音大；难过像连绵的梅雨，不知不觉把人泡透；焦虑像回南天，到处黏糊糊的说不清哪里不对劲；平静是难得的晴天，值得被记下来。',
-            '为什么要给情绪起天气名字？因为"天气"没有对错。我们不会骂一场雨"你怎么能下雨"，但我们会骂自己"你怎么能难过"。换个说法，指责就变成了观察。'
-          ]},
-          { h: '预报三步法：察觉 → 命名 → 预报', ps: [
-            '第一步察觉：身体是最准的传感器。肩膀紧了、胃里堵了、话变少了，这些都是心里天气变化的信号。',
-            '第二步命名：研究发现，能准确说出"我现在是失望，混着一点点委屈"的人，情绪强度会自己下降——这叫"情绪标注"。模糊的难受最磨人，命名它，它就从一团雾变成了一个可以研究的东西。',
-            '第三步预报：雷阵雨最好的办法是躲一躲再出门——先离开现场喝口水；梅雨天要开灯、要多动——约人打球比一个人闷着有用得多。'
-          ]},
-          { h: '课间十分钟：画一张自己的天气图', ps: [
-            '回想最近一周：哪天是晴天？哪天有雷阵雨？什么时间容易起雾？把你发现的规律写在练习里。',
-            '长期记录你会发现：你的坏天气往往有固定的"锋面"——周日晚上的作业、特定某节课之前。知道暴雨几点来，你就永远有带伞的时间。'
-          ]}
-        ],
-        takeaways: ['情绪没有好坏，只有舒适和不舒适', '说出情绪的名字，强度就会下降', '身体信号比大脑更早知道天气变化', '不同天气有不同的应对方式，就像出门看天穿衣'],
-        exercise: { q: '给最近一周的心里画一张天气预报：哪些时刻是晴天、雨天、雷阵雨或大雾？你发现了什么规律？', hint: '不用写满，两三句发现就很棒。' }
-      },
-      {
-        tag: '减压技能', title: '呼吸的小魔术',
-        desc: '身体自带一个"紧急制动按钮"——它就是呼吸。三个随时能用的呼吸小魔术，考试前、睡前、吵架后都管用。',
-        meta: '互动 6分钟 · 练习 1个', minutes: 6,
-        intro: '心跳加速、手心出汗、脑子一片空白——这是身体拉响了警报。好消息是：呼吸是唯一一个既能自动运行、又能手动操控的身体功能。抓住它，就抓住了方向盘。',
-        sections: [
-          { h: '为什么深呼吸真的有用', ps: [
-            '紧张时你用的是胸腔浅呼吸，身体以为"有危险，省着点用氧"。而慢慢的长呼气会激活副交感神经——它是身体的"刹车系统"，会在几秒内告诉心脏：警报解除，降速。',
-            '关键在"呼气比吸气长"。吸气 4 秒、呼气 6 秒以上，刹车才会真的踩下去。'
-          ]},
-          { h: '三个随身小魔术', ps: [
-            '① 4-7-8 睡前魔术：吸气 4 秒 → 屏住 7 秒 → 缓缓呼 8 秒，重复四轮。适合睡不着、脑子里停不下来的时候，像给大脑调了个静音键。',
-            '② 方块呼吸考试魔术：吸气 4 秒（画左边）→ 屏 4 秒（画上边）→ 呼 4 秒（画右边）→ 屏 4 秒（画下边）。在草稿纸角落画小方块跟着走，三次就能把心率达到"能思考"的状态。',
-            '③ 5-4-3-2-1 当场着陆术：说出你看到的 5 样东西、听到的 4 种声音、摸到的 3 种质感、闻到的 2 种气味、尝到的 1 种味道。焦虑把你拽进脑海时，它把你接回此时此刻。'
-          ]},
-          { h: '课间十分钟：现在就试一轮', ps: [
-            '别收藏了就等于练过了。现在放下手机，跟我一起做一轮方块呼吸——吸 2、3、4，屏 2、3、4，呼 2、3、4……',
-            '感受肩膀沉下去的那半秒了吗？那不是错觉，是你的神经系统在说谢谢。这个魔术别人看不见，但你自己知道。'
-          ]}
-        ],
-        takeaways: ['呼气比吸气长，才能激活身体的刹车系统', '4-7-8 适合睡前，方块呼吸适合考前，5-4-3-2-1 适合当场慌乱', '呼吸是最隐蔽的超能力，别人看不见但真的有用', '练过一次才算拥有，收藏不算'],
-        exercise: { q: '试做一轮任意呼吸魔术，然后写下：做之前和做之后，身体的感觉各是什么样的？', hint: '肩膀、心跳、脑子里的音量……都可以写。' }
-      },
-      {
-        tag: '睡眠健康', title: '给大脑充电的夜晚',
-        desc: '熬夜不是意志力问题，是方法问题。了解睡眠的科学，找回早上不靠闹钟也能醒的自己。',
-        meta: '图文 8分钟 · 练习 1个', minutes: 8,
-        intro: '青少年需要 8-10 小时睡眠，但大多数同学只有 6-7 小时。缺觉不会让你立刻垮掉，它会偷偷收走你的记忆力、情绪稳定性和长个子的生长激素——都在你看不见的地方。',
-        sections: [
-          { h: '睡着的时候，大脑在加班', ps: [
-            '白天学的知识存在海马体的"临时仓库"里，只有深睡眠时才会被搬进"永久仓库"（大脑皮层）。熬夜复习等于一边搬书一边扔仓库钥匙——昨晚背的，今天忘一半，不是你笨，是搬运工没上班。',
-            '生长激素也在深睡眠分泌，而且它的高峰只在夜里。想长高，睡前做什么都不如"到点躺下"有用。'
-          ]},
-          { h: '手机的蓝光是个小偷', ps: [
-            '屏幕的蓝光会骗过大脑的"褪黑素工厂"：天还亮着呢，不用分泌睡眠激素。刷着刷着，困意就没了——不是你不困，是被偷走了。',
-            '这不是要求你戒手机，而是给它立规矩：睡前 30 分钟把手机放到够不着的地方充电。够不着，是关键——伸手就能拿到的东西，没有任何自律能赢过它。'
-          ]},
-          { h: '课间十分钟：设计你的充电流程', ps: [
-            '好睡眠不靠"困了再睡"，靠固定的降落程序：比如洗漱 → 拉窗帘 → 纸质书 10 页 → 关灯。重复两周，身体会学会"这套动作 = 该睡了"，躺下 15 分钟内自动关机。',
-            '周末也别报复性狂睡：比平时晚起超过 2 小时，等于每周给自己倒一次时差，周一会更难受。'
-          ]}
-        ],
-        takeaways: ['记忆的搬运工只在深睡眠上班，熬夜=白学', '生长激素的高峰在夜里，睡觉就是长高', '蓝光偷走褪黑素，睡前手机放远一点', '固定"降落程序"比意志力可靠得多'],
-        exercise: { q: '给自己设计一个"睡前降落程序"（3-4 步），并写下打算从今晚还是明晚开始执行？', hint: '越简单越容易做到，比如：洗漱→手机放客厅→看 10 页书→关灯。' }
-      },
-      {
-        tag: '数字生活', title: '和手机和平共处',
-        desc: '不是你玩手机，是手机在"玩"你。看懂屏幕背后的设计套路，把主动权拿回来。',
+        tag: '生命起源', title: '生命从哪里来',
+        desc: '从一颗受精卵到抱着你的那双手——每个人的到来，都是一场跑了亿万年的接力。',
         meta: '图文 9分钟 · 练习 1个', minutes: 9,
-        intro: '说好只看 5 分钟，抬起头一小时过去了——这不是你不自律。短视频和无限下滑的设计，背后有成百上千的工程师在研究"怎么让你停不下来"。看懂套路，才是反击的开始。',
+        intro: '谈死亡之前，先谈出生。你有没有认真想过：你是怎么来到这个世界的？这一课，带你回到生命故事的起点。',
         sections: [
-          { h: '三个让你停不下来的设计', ps: [
-            '无限下滑：没有"一集结束"的终点，大脑等不到"该停了"的信号。传统剧有片头片尾，你的大脑知道哪里是句号；信息流没有。',
-            '随机奖励：每次下拉都是一次"开盲盒"——可能无聊，也可能超级好玩。这种"不确定的惊喜"是最强的成瘾机制，和老虎机是同一个原理。',
-            '红色提醒：小红包、红点点，用的都是让人无法忽视的警示色。很多"红点"其实只是广告位。'
+          { h: '一场跑了亿万年的接力', ps: [
+            '你的一切都始于一颗受精卵——爸爸的种子和妈妈的种子相遇的时刻。再往前追：你的眼睛像谁？笑起来像谁？这些写在基因里的特征，从你的父母、父母的父母，一路传了几十上百代。',
+            '生命就像一场接力赛，跑了亿万年从未停棒，此刻棒子正好交到你手里。你带着的是无数先人走过的路——这件事，本身就挺了不起。'
           ]},
-          { h: '反套路三招', ps: [
-            '① 给它上锁而不是上闹钟：把最耗时间的 App 移出首屏、关掉所有非人的通知（点赞、推荐），留下真人的消息就行。',
-            '② 用"结束感"对抗"无限感"：看视频前先定个数——"就刷 10 条"，刷完手动回主界面。有句号，大脑才肯散场。',
-            '③ 换奖励源：无聊时大脑要的是"新鲜感"，运动、和朋友瞎聊、哪怕削个苹果都能给。多备几个便宜又健康的快乐，你就有得选。'
+          { h: '妈妈身体里的十个月', ps: [
+            '从一个比芝麻还小的细胞，到能睁眼、会踢腿的小婴儿，你在妈妈肚子里住了大约十个月。你的心跳在孕早期就开始了——比你自己第一次听到它，早了很多年。',
+            '出生那天也很了不起：你的肺第一次打开，血液循环换了一套新路线。每个人的出生，都是一场惊心动魄的成功着陆。'
           ]},
-          { h: '课间十分钟：算一笔时间账', ps: [
-            '打开手机的屏幕使用时间，看看每天花在最常用的 App 上几小时。×365 天——那个数字可能超过你一整年在校的课时。',
-            '不是要你愧疚，而是要你知情：知情之后，每一次点开都是你的选择，而不是习惯的自动驾驶。'
+          { h: '课间十分钟：问问你的出生故事', ps: [
+            '今晚回家问一位家人："我出生那天是什么样的？"你可能会听到：几点出生、多重、像谁、谁第一个抱了你、窗外是什么天气。',
+            '每个孩子的出生都是家里的大事，只是很少被讲起。把它记下来——这就是只属于你的"生命第一章"。'
           ]}
         ],
-        takeaways: ['停不下来是设计出来的，不是你意志力差', '无限下滑、随机奖励、红色提醒是三大套路', '物理距离比自律管用，把手机放远一点', '有"句号"才能停下来，刷之前先定结束点'],
-        exercise: { q: '查一下你的屏幕使用时间，写下：哪个 App 吃掉了最多时间？你打算用今天学的哪一招来对付它？', hint: '具体到"把 XX 移出首屏"或"睡前放到客厅充电"这样的动作。' }
+        takeaways: ['生命是一场从远古跑到今天的接力，棒子此刻在你手里', '你的心跳从妈妈肚子里就开始了', '出生不是"来了"，而是一场成功的着陆', '问问自己的出生故事，写下生命第一章'],
+        exercise: { q: '去问问家人你出生那天的事，把最打动你的一个细节写下来。', hint: '可以是时间、体重、一个表情，或者当时窗外的天气。' }
       },
       {
-        tag: '人际边界', title: '友谊的边界线',
-        desc: '真正的朋友不需要你委屈自己去维持。学会温柔而坚定地说"不"，友谊反而更长久。',
-        meta: '图文 8分钟 · 练习 1个', minutes: 8,
-        intro: '"都是朋友，帮个忙怎么了？"——如果每次答应之后你心里都堵堵的，这一课想说：让你不舒服的请求，拒绝不是冷酷，是诚实。',
+        tag: '自然课堂', title: '一粒种子的旅行',
+        desc: '从破土到归土，一粒种子过完的一生，和我们有很多相似之处。',
+        meta: '图文 8分钟 · 实践 1个', minutes: 8,
+        intro: '如果只能选一件事来理解生命，我会选种子。它小到能握在手心，却装着一整棵树的全部计划。',
         sections: [
-          { h: '什么是边界？', ps: [
-            '边界就是你心里的"门"：什么可以进来，什么要挡在门外。它包括你的时间（不想被随叫随到）、你的物品（不想总被借走）、你的情绪（不想当免费垃圾桶）、你的身体（不想被起哄触碰）。',
-            '没有边界的好人，看起来人人都喜欢，其实最累——因为你把所有的门都拆了，谁都可以进来踩一脚。'
+          { h: '种子的计划表', ps: [
+            '一粒种子里面有胚——那是一棵缩小的树，还附一份"什么时候发芽、先长根还是先长叶"的完整说明书。它安静地等，等雨水、等温度，等一个恰到好处的春天。',
+            '破土之后它拼命长：先扎根（没人看见的部分），再长叶（人人看见的部分）。一棵树把一半的功夫花在看不见的根上——人也一样，你读的书、练的本事，都是地下的根。'
           ]},
-          { h: '温柔而坚定地说"不"', ps: [
-            '公式：感谢 + 拒绝 +（可选）替代方案。"谢谢你想到我，不过这次我不去，你们玩开心！"——不用编一堆借口，不用愧疚到半夜。',
-            '对方生气了怎么办？观察一个细节：TA是因为被拒绝而失望（可以理解），还是用生气逼你服从（危险信号）。真正的朋友会消化你的"不"，只有想利用你的人才会把它当罪状。',
-            '同样重要的是守住别人的边界：朋友说"不想聊这个"，就换个话题；借用先问，拒绝也接受。你对边界的尊重，会教会别人怎么尊重你。'
+          { h: '花落了，果实来了', ps: [
+            '花开得再好看，几周也会谢。但谢掉的花不是"失败"——花谢的地方会结出果实，果实里有新的种子。一株植物把最美的部分让渡给下一代，这就是它的传承。',
+            '秋末叶子落尽，树看起来"死"了吗？没有。它把力气收进根和枝干里过冬，等春天再来。生命有时前进，有时蛰伏，蛰伏不是结束。'
           ]},
-          { h: '课间十分钟：排练一次', ps: [
-            '想一件最近让你为难、但你答应了（或正打算答应）的事。在练习里写下你想说的那句话——用"感谢+拒绝"公式。',
-            '写出来就算排练过一遍。下次真的遇到，你嘴里的句子会比想象中流畅得多。'
+          { h: '课间十分钟：亲手种一颗', ps: [
+            '找一颗绿豆或黄豆，包进湿棉花，放在窗台。接下来一周每天看它一眼：哪天鼓起来、哪天裂口、哪天冒出白根。',
+            '你会亲眼看到"开始"长什么样。等你想念谁、或者觉得低落的时候，也可以再种一颗——看着生命自己找出路，是很治愈的事。'
           ]}
         ],
-        takeaways: ['边界是心里的门，拆了它谁都能进来踩一脚', '拒绝公式：感谢 + 拒绝 + 可选替代方案', '用生气逼你服从的人，值得重新评估这段友谊', '守住别人的边界，别人才学得会守住你的'],
-        exercise: { q: '写一句你最近最想说出口的"不"，用上"感谢 + 拒绝"公式。', hint: '写给谁都可以：同学、亲戚、甚至网络上的陌生人。' }
+        takeaways: ['种子里装着一棵树的全部计划和耐心', '一半的功夫花在看不见的根上，人也一样', '花谢不是失败，是为了结果和传承', '亲手种一颗，你会看见"开始"的样子'],
+        exercise: { q: '今天种下一颗豆子，写下你打算观察它的哪三个变化。', hint: '鼓包、裂口、扎根、脱壳、冒芽……都可以。' }
       },
       {
-        tag: '学业压力', title: '考场上的深呼吸',
-        desc: '考试焦虑不是"心理素质差"，是大脑在超频。考前、考中、考后各有一套急救动作。',
-        meta: '图文 7分钟 · 练习 1个', minutes: 7,
-        intro: '平时会做的题，一到考场大脑就一片空白？那不是你不行，是身体把血液从"思考区"调去了"逃跑区"。这一课教你把血液请回来。',
+        tag: '自然课堂', title: '蜉蝣、蝉与龟：不同长度的生命',
+        desc: '朝生暮死的蜉蝣"可怜"吗？地下十七年的蝉在等什么？答案会刷新你对"长短"的看法。',
+        meta: '图文 9分钟', minutes: 9,
+        intro: '我们常用"长短"评价生命：活得久好像就赢了。可大自然里，有的生命只有一天，有的要等十七年——它们过得并不比我们差。',
         sections: [
-          { h: '"空白"是身体的紧急调度', ps: [
-            '压力大时，身体以为是老虎来了：心跳加速、手心出汗、消化系统停机——负责复杂思考的前额叶也被暂时"降级"。你需要的不是责怪自己，而是告诉身体：这里没有老虎，只有一张卷子。',
-            '所以上上策是让身体先冷静：进考场前两分钟做一轮方块呼吸（上一课学过），比多背一个知识点更能提分。'
+          { h: '只活一天的蜉蝣', ps: [
+            '蜉蝣成虫只活几个小时到一天，连嘴都退化了，不吃饭，只做两件事：飞舞、繁殖。古人写"朝生暮死"，觉得它可怜。可对蜉蝣来说，那一天就是完整的一生：该见的面见到了，该做的事做完了。',
+            '一段生命完不完整，不看长度，看它有没有好好经历属于自己的每一幕。'
           ]},
-          { h: '考中的"卡壳急救包"', ps: [
-            '遇到第一题就懵了？跳过它。先做会做的题，让大脑攒够"我能行"的证据，回头再看难题往往就顺眼了。',
-            '笔停了手别停：在草稿纸上抄一遍题目关键词，动作会把手感带回来。',
-            '越催自己"快点想"越想不出来，试着对自己说"先写别的，等下回来"——大脑吃软不吃硬。'
+          { h: '地下十七年的蝉', ps: [
+            '北美的周期蝉要在黑暗的地底下待整整十七年，靠树根的汁液慢慢生长，然后在同一个夏天集体出土、蜕壳、鸣叫，几周后死去。',
+            '十七年的等待换几周的嘹亮。你为一场比赛、一次演出苦练数月时的滋味，就是蝉在地下早已懂得的事——值得的事，等得起。'
           ]},
-          { h: '考后：分数是数据，不是判决', ps: [
-            '考砸的那科最容易在心里循环播放。给自己一个"复盘仪式"：把错题写下来、标注原因（没掌握？粗心？紧张？），然后合上本子说一句"数据已存档"。',
-            '复习的目的是找到漏洞，不是给自己定罪。会复盘的人，每次跌倒都在捡经验值。'
+          { h: '龟与树：慢慢活也是一种活法', ps: [
+            '陆龟能活一百多岁，一些古树的年龄要用"千年"来数。它们不着急：消耗少、节奏稳，把日子过得又长又安静。快有快的精彩，慢有慢的从容——每种生命都在按自己的节奏，把一生过完整。',
+            '那你呢？人类的寿命大约几十年：按每周见一次算，和父母真正相处的次数可能只剩几百次；一个寒暑假，一生也只有十几个。这不是让你焦虑，而是提醒你：把时间多分给以后一定会想念的人和事。'
           ]}
         ],
-        takeaways: ['大脑空白是血液被调走，呼吸能把它请回来', '先做会做的题，攒够"我能行"的证据', '卡壳时抄题目关键词，用动作带回手感', '分数是数据不是判决，会复盘的人越跌越强'],
-        exercise: { q: '写下你的"考场急救包"：考前一个动作、考中一个动作、考后一个动作。', hint: '比如：考前方块呼吸 / 考中先跳过难题 / 考后写错因存档。' }
+        takeaways: ['生命的完整度不看长度，看有没有好好经历', '值得的事，等得起——蝉在地下懂得的道理', '快有快的精彩，慢有慢的从容', '给重要的人和事，多分一点你的"配额"'],
+        exercise: { q: '算一算：你还能和最爱的家人过多少个寒暑假？你想怎么用这些时间？', hint: '数字只是提醒，不是焦虑。写一两句你想做的事就好。' }
       },
       {
-        tag: '自我认同', title: '独一无二的你',
-        desc: '"别人家的孩子"是个无限游戏——你永远赢不了，因为规则就是让你输。这一课，把目光收回到自己身上。',
-        meta: '图文 8分钟 · 练习 1个', minutes: 8,
-        intro: '有没有发现，朋友圈里每个人都过得比你好？其实那是因为大家都在发"精选集"，而你拿自己的"幕后花絮"去比别人的"高光时刻"——这场比赛从一开始就不公平。',
+        tag: '陪伴衰老', title: '爷爷奶奶在慢慢变老',
+        desc: '衰老不是生病，是每个人都会到达的季节。学会陪伴变老的人，是生命教育最温柔的一课。',
+        meta: '图文 9分钟 · 练习 1个', minutes: 9,
+        intro: '你有没有发现，爷爷奶奶走路慢了、耳朵背了、同一个故事讲了三遍？这不是他们"变烦了"，是生命进入了秋天。',
         sections: [
-          { h: '比较是偷走快乐的贼', ps: [
-            '大脑天生爱比较，这是刻在基因里的生存本能。但社交时代把比较范围从"村里同龄人"扩大到了"全网最会展示自己的百万分之一"——用本能去打这么悬殊的比赛，谁都会输。',
-            '解法不是"别看手机"，而是换算尺子：看到别人的高光时，提醒自己一句"这是TA的精选集，不是TA的日常"。'
+          { h: '变老是什么样子的', ps: [
+            '头发变白，是毛囊里的色素细胞退休了；腿脚变慢，是肌肉每年悄悄减少一点；记性变差，是大脑检索旧文件的速度慢了。这些不是"坏了"，是自然规律。',
+            '有的老人会忘事，甚至忘记刚说过的话——严重的叫阿尔茨海默病。他们可能忘记你的名字，但常常还记得"感觉"：你带来的温暖，他们感受得到。'
           ]},
-          { h: '你的人生不用活成范文', ps: [
-            '有人擅长考试，有人擅长让朋友笑出声，有人能专注地画一下午画——这些"不上秤"的部分，恰恰是你最真实的分量。世界不是一张只考语数外的卷子，只是它把别的科目都留到了校园外考。',
-            '试着用"我在成为什么样的人"替换"我考得怎么样"：前者是你的人生，后者只是其中一个刻度。'
+          { h: '他们要的不多：被需要、被听见', ps: [
+            '老人最怕的不是身体变差，而是"没用了"。请他们帮个小忙——教你一道菜、讲一段家族往事——会让他们眼睛发亮。',
+            '听他们讲过去，不是客套。那些"从前"里有你的来处：太爷爷怎么逃过荒、奶奶小时候怎么上学。听故事的人，是家族记忆的接力者。'
           ]},
-          { h: '课间十分钟：写一份"不比较清单"', ps: [
-            '写下三件"我不比别人强，但我就是很喜欢"的事——可能是一个小习惯、一点点怪趣味、一项没人注意的本事。',
-            '它们不需要打败谁才配存在。喜欢本身，就是全部的理由。'
+          { h: '课间十分钟：为老人做三件小事', ps: [
+            '① 教他们一个手机功能（视频通话、拍照）；② 问一个"从前"的问题，认真听完；③ 陪他们散步十分钟，步子放慢，跟他们的节奏走。',
+            '陪伴变老的人，你也在预习一件事：有一天你的父母、你自己也会老。现在学会的耐心，将来都会用上。'
           ]}
         ],
-        takeaways: ['别人的朋友圈是精选集，不是日常', '比较的本能没变，比较的战场变得太悬殊', '"我在成为什么样的人"比"我考了多少分"更接近人生', '喜欢一件事不需要理由，也不需要打败谁'],
-        exercise: { q: '写下三件"不比别人强，但就是很喜欢"的事。', hint: '越小越好：会叠超整齐的被子、记得朋友的口味、逗猫的本领都算。' }
+        takeaways: ['变老不是生病，是生命自然的秋天', '忘事的人还记得"感觉"，你的温暖TA感受得到', '老人最怕"没用了"，请TA帮小忙是良药', '听老人讲从前，你就是家族记忆的接力者'],
+        exercise: { q: '本周为家里最年长的人做上面三件小事中的一件，写下TA的反应和你的感受。', hint: '越小的事越真实：一个笑、一句"好、好"，都值得记。' }
       },
       {
-        tag: '情绪管理', title: '愤怒的小火山',
-        desc: '愤怒不是坏情绪，它是心里的警报器。学会听懂它、安顿它，而不是压住它或被它推着走。',
-        meta: '图文 7分钟 · 练习 1个', minutes: 7,
-        intro: '每次发完火都后悔，可当下就是忍不住？先别自责——愤怒从来不是问题，问题是我们从没学过它的使用说明书。',
+        tag: '宠物告别', title: '谢谢你陪我长大',
+        desc: '宠物的一生比我们短很多。如何照顾它们的后半程，又如何好好说再见。',
+        meta: '图文 10分钟 · 故事 1个', minutes: 10,
+        intro: '狗和猫的寿命十几年，仓鼠两三年。把它们带回家的那天起，就注定我们要先经历一次告别。这一课讲怎么把这段路走好。',
         sections: [
-          { h: '愤怒在保护什么', ps: [
-            '愤怒几乎从不单独出现，它底下总垫着别的情绪：被嘲笑时的羞耻、被误会时的委屈、被忽视时的失落。愤怒是这些软情绪的保镖——软的说不出口，就让凶的冲上去。',
-            '所以下次想发火，先问自己一句：它到底在保护我哪个地方？找到底下那个软情绪，你才知道自己真正想要的是什么（被尊重？被听见？）。'
+          { h: '它的十几年，是你的一小段，却是它的一生', ps: [
+            '对狗来说，你每天上学、放学的等待占满了它的一天；你十岁到二十岁的那段时光，几乎是它的一生。它不是你的"一时兴起"，是你童年最忠实的见证者。',
+            '所以宠物老了，不是"没意思了"：牙口差了换软的食物，腿脚慢了缩短散步、加个垫子。让它舒服，就是报答它陪你的那几年。'
           ]},
-          { h: '岩浆温度计：在爆发前介入', ps: [
-            '愤怒像火山，有明确的升温线：3 分的不耐烦 → 5 分的烦躁 → 7 分的火大 → 9 分的爆发。最好介入的时机是 3-5 分——肩膀发紧、说话变冲、心里开始"酸溜溜"的时候。',
-            '到 7 分以上，讲道理没用，先用身体降温：离开现场（"我去趟洗手间"）、冷水洗手腕、用力握拳再松开十次。别在岩浆上做任何决定。'
+          { h: '告别来的时候', ps: [
+            '兽医有时会建议"安乐"——在痛苦无法缓解时，让它安详地睡去。这不是"不要它了"，是不忍心它疼。很多主人在这一步最纠结，而纠结恰恰因为爱。',
+            '允许自己大哭一场。宠物离开的难过是真实的、值得被认真对待的——因为你们朝夕相处过，那份感情一点不"轻"。'
           ]},
-          { h: '课间十分钟：给最近一次发火写"溯源报告"', ps: [
-            '回想最近一次发火：表面原因是什么？底下垫着的是什么情绪？你当时真正想要的是什么？',
-            '写完你会发现：让火山熄火的方法，往往不是"忍住"，而是把底下那个软情绪说出来——"你刚才那样说，我觉得挺委屈的。"'
+          { h: '故事：豆豆的最后一周', ps: [
+            '初二的程程养了十一年的狗豆豆大限将至。她做了三件事：每天给它梳一次毛、把它的呼噜声录进手机、带它去了它最爱的河边。豆豆走后，她把照片做成了一本小相册。',
+            '"还是会想它。但我不想让最后的日子只剩难过——我们把该说的话都说完了。"程程说。好好地告别，是为了以后的想念有地方安放。'
           ]}
         ],
-        takeaways: ['愤怒是保镖，底下总垫着更软的情绪', '3-5 分的不耐烦是最佳介入时机', '7 分以上先让身体降温，别在岩浆上做决定', '说出软情绪比压住怒火更能解决问题'],
-        exercise: { q: '给最近一次发火写一份"溯源报告"：表面原因、底下的软情绪、你真正想要的是什么？', hint: '对自己诚实就好，这份报告只有你自己看。' }
+        takeaways: ['它的一生都在陪你，照顾它变老是报答', '安乐不是放弃，是不忍心它疼', '失去宠物的难过是真实的，值得认真对待', '好好告别，是为了以后的想念有地方安放'],
+        exercise: { q: '如果你的宠物还在身边：写下本周想陪它做的一件事。如果它已经离开：写一句你想对它说的话。', hint: '两件事都是纪念，都算数。' }
+      },
+      {
+        tag: '纪念仪式', title: '想念可以放在哪里',
+        desc: '清明、葬礼、遗照、纪念物——这些不是"老一套"，是人类为想念发明的容器。',
+        meta: '图文 9分钟 · 练习 1个', minutes: 9,
+        intro: '人去世后，为什么要有葬礼？为什么清明要扫墓？如果你觉得这些仪式很奇怪，这一课想告诉你它们真正的作用。',
+        sections: [
+          { h: '葬礼是办给活人的', ps: [
+            '葬礼、追悼会，逝者其实"看不到"。它们是给活着的人的：让大家聚在一起，承认"这件事发生了"，一起哭、一起回忆、互相搀扶。有告别仪式的家庭，哀伤往往更容易慢慢平复。',
+            '如果你在葬礼上哭不出来，或只想安静待着，都没问题。仪式没有标准动作，它的意义是给想念一个开始的地方。'
+          ]},
+          { h: '清明、遗照与纪念物', ps: [
+            '清明扫墓，是每年给想念留出的"会面时间"：擦一擦照片、放一束花、说几句最近的事。遗照、老物件是思念的"锚"——心里乱的时候看看它们，就稳一点。',
+            '纪念物也可以自己创造：外婆的围裙、爷爷的旧手表、宠物的小铃铛，装进盒子写上日期。想念有处安放，就不会乱跑。'
+          ]},
+          { h: '课间十分钟：设计你的"想念仪式"', ps: [
+            '如果你想纪念一个人或一只宠物，可以设计一个小仪式：每年那天吃一次TA爱吃的菜、听一首TA的歌、给TA写一封不寄出的信。',
+            '仪式的作用，是让爱"换一种方式继续"——想念不再是心里的乱流，而是一年一度的、温柔的约定。'
+          ]}
+        ],
+        takeaways: ['葬礼是办给活人的：承认发生，一起搀扶', '仪式没有标准动作，哭不出来也没关系', '纪念物是思念的锚，心乱时看看就稳了', '想念仪式让爱换一种方式继续'],
+        exercise: { q: '为你想念的人（或宠物）设计一个属于自己的小纪念仪式，写下来。', hint: '越具体越好：哪一天、做什么、大概花几分钟。' }
+      },
+      {
+        tag: '珍爱生命', title: '做生命的守护者',
+        desc: '生命只有一次。这一课讲最实际的：危险和低谷来临时，怎么稳稳地护住自己和别人。',
+        meta: '图文 10分钟 · 练习 1个', minutes: 10,
+        intro: '前面几课都在讲"生命可贵"。这一课讲怎么真正把它护住——身体的安全和心里的安全，各有一套守护方法。',
+        sections: [
+          { h: '身体的安全：离危险远一点', ps: [
+            '溺水是青少年意外离世的主要原因之一——不去野泳、不去无人看管的水域；过马路不看手机；发现同学要去危险的地方玩，喊一声"别去"，你可能就救了他。',
+            '遇到火灾、地震等紧急情况，记住"先逃生、后财物"，熟记学校的逃生路线和家里的逃生约定。安全不是胆小，是对生命的尊重。'
+          ]},
+          { h: '心里的安全：低谷时怎么办', ps: [
+            '每个人都会有"熬不住"的时刻。记住三步：① 告诉一个大人——父母、老师、亲戚，谁让你安心找谁；② 拨打心理援助热线 12356（全国24小时），有专业的人接；③ 撑过当下：情绪像潮水，会涨也会退，先熬过今晚。',
+            '如果朋友说他"不想活了"，认真对待：别嘲笑、别激他，陪着他，并立刻告诉可信的大人。这不是"出卖朋友"，这是真正的义气。'
+          ]},
+          { h: '课间十分钟：存好你的"守护名单"', ps: [
+            '在手机或本子上写下：三个遇到危险或低谷时可以求助的人（姓名+电话），加上 12356 热线和 110、120。',
+            '守护名单就像安全气囊——希望永远用不上，但关键时刻，它是你和重要的人之间最短的一条线。'
+          ]}
+        ],
+        takeaways: ['生命只有一次，安全不是胆小是尊重', '野泳、马路看手机，都是拿唯一的一次冒险', '低谷三步：找大人、打热线、撑过当下', '朋友说"不想活了"，认真对待并立刻告诉大人'],
+        exercise: { q: '写下你的"守护名单"：三个可以求助的人和两个应急号码。', hint: '写真实的人，越近越好：家长、老师、亲戚都算。' }
+      },
+      {
+        tag: '生命意义', title: '把一生过成自己的样子',
+        desc: '既然每个人都会走到终点，这一生到底该怎么过？最后一课，聊聊意义。',
+        meta: '图文 10分钟 · 练习 1个', minutes: 10,
+        intro: '了解死亡，不是为了害怕它，而是为了反过来问：既然生命有限，我想把它花在什么上面？这是生命课堂的收尾一课。',
+        sections: [
+          { h: '意义不是找到的，是做出来的', ps: [
+            '很多人以为"人生意义"像宝藏，藏在某处等人找到。其实意义更像脚印——你走过、爱过、帮过人、做成过小事，回头看，那条路就是意义。',
+            '帮同学讲懂一道题、陪家人吃一顿认真聊天的饭、把一件喜欢的事坚持一年——这些小事串起来，就是你的答案。'
+          ]},
+          { h: '三个问题，当作指南针', ps: [
+            '① 什么事让你忘记时间？那是热爱所在；② 谁因为你而更好过？那是价值所在；③ 如果时间只剩一年，你会先做什么？那是重点所在。',
+            '答案会变，没关系——指南针不是地图，它只管方向。每年问自己一遍，你会在变化里越来越清楚自己是谁。'
+          ]},
+          { h: '课间十分钟：写一份"少年梦想清单"', ps: [
+            '写下十件这辈子想体验的事：学会游泳、看一次真正的星空、登一次台、带爸妈去旅行……然后挑一件，写下最近的下一步。',
+            '玉兰一年年开花，你一年年把清单划掉一行——这就是生命最好的样子。'
+          ]}
+        ],
+        takeaways: ['意义不是找到的，是做出来的', '热爱=忘记时间的事，价值=因你更好过的人', '指南针不是地图，答案会变但方向会清', '少年梦想清单：一年划掉一行，就是最好的生命'],
+        exercise: { q: '写下你的梦想清单前十件，并给第一件写下"最近的下一步"。', hint: '不用伟大，体验类的小事最珍贵。' }
       }
     ],
     adult: [
@@ -8989,7 +9014,8 @@ body.style-flat .listen-tip { color: var(--fx-ink); opacity: 0.55; }
     goto: goto, udGet: udGet, udSet: udSet, openShare: openShare,
     Courses: COURSES, openCourse: openCourse, doneRef: doneCourses,
     addStory: addStory, openStoryModal: openStoryModal, renderBank: renderBank,
-    pushInbox: pushInbox, curUser: curUser, users: users   /* 青少年小花园（漂流瓶/玉玉送信）投递通道 */
+    pushInbox: pushInbox, curUser: curUser, users: users,   /* 青少年小花园（漂流瓶/玉玉送信）投递通道 */
+    addRelation: addRelation, removeRelation: removeRelation, myRels: myRels, relTypeLabel: relTypeLabel   /* 关系层共用：青少年小伙伴系统走同一数据通道 */
   };
   window.SGCloud = Cloud;    /* 调试/测试入口 */
   window.SGIDB = IDB;
@@ -17006,15 +17032,15 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
   var mgTxt = document.getElementById('ym-prog-txt');
   /* 安安气泡：对话框已移除，播报统一走右下角人物旁的 #sg-bubble（跟随人物位置）
      口吻 =《魔法少女的魔女审判》夏目安安：家里蹲、笔谈簿、自称「吾辈」、傲娇毒舌、怕寂寞 */
-  var WELCOME = '……吾辈乃夏目安安。这棵玉兰，是吾辈看管的——也、也允许汝一起照料。八节课，汝翻开一课，天上便落一场雨，树就长高一截。别误会，吾辈才不是特意等汝，只是本子上的插画还缺几笔而已。树旁那排课程之门，快去翻开一扇。';
+  var WELCOME = '……吾辈乃夏目安安。这棵玉兰，是吾辈看管的——也、也允许汝一起照料。十六节课，汝翻开一课，天上便落一场雨，树就长高一截。别误会，吾辈才不是特意等汝，只是本子上的插画还缺几笔而已。树下那排课程之门，快去翻开一扇。';
   var TIPS = [
     '拖一拖那棵树……就转起来了。汝的手指倒还算灵巧。吾辈已把它的样子描进本子里了，画得当然比原物好。',
-    '树旁边那排卡片是课程之门。点一扇，吾辈就……就顺便陪汝进去！不是想陪，是本子还没画完，走不开。',
+    '树下面那排卡片是课程之门。点一扇，吾辈就……就顺便陪汝进去！不是想陪，是本子还没画完，走不开。',
     '每课末尾有随堂练习——写给吾辈也无妨。吾辈看过的字都会收进本子，绝、绝不给旁人瞧。这是笔谈的规矩。',
     '「四道人生练习」……道谢、道歉、道爱、道别。哼，这种事吾辈最、最不擅长了。所以汝替吾辈先练。拜托了。',
     '汝每学完一课，吾辈就在本子上盖一个章。这是为了记录树的高度！才不是想多见汝几次。',
     '心里乱乱的时候，来找吾辈笔谈。吾辈哪里都不去——毕竟吾辈本来就、本来就不太出门。',
-    '八课全部读完，玉兰满开。到那时，吾辈就把画完的本子给汝看一眼。就、就一眼而已，不许多要。'
+    '课程全部读完，玉兰满开。到那时，吾辈就把画完的本子给汝看一眼。就、就一眼而已，不许多要。'
   ];
   /* 安安实时反应：根据用户操作弹出夏目安安口吻的对话框 */
   var ANAN_OPEN = [
@@ -17073,10 +17099,12 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
     if (!host) return;
     var full = p.done >= p.total;
     var words = full ? '玉兰树已经枝繁花茂' : '还差 ' + (p.total - p.done) + ' 个阶段就满树繁花啦';
+    var eg = 0; try { eg = parseInt(localStorage.getItem('sg-youth-energy') || '0', 10) || 0; } catch (e) {}
     host.innerHTML =
       '<div class="ystat"><b>' + p.done + '</b><span>已到阶段</span></div>' +
       '<div class="ystat"><b>' + p.done + '</b><span>完成课程</span></div>' +
-      '<div class="ystat"><b>' + (full ? '✿' : p.total - p.done) + '</b><span>' + (full ? '满树繁花' : '待长阶段') + '</span></div>';
+      '<div class="ystat"><b>' + (full ? '✿' : p.total - p.done) + '</b><span>' + (full ? '满树繁花' : '待长阶段') + '</span></div>' +
+      '<div class="ystat ystat-egy"><b>' + eg + '</b><span>能量总量 g</span></div>';
     var out = host.parentElement && host.parentElement.querySelector('.yme-out p');
     if (out) out.textContent = full ? '八个生长阶段全部点亮，青少年与成人版的课你都走过了一遍 🌸 想去别的世界看看吗？' : '安安悄悄说：' + words + '。慢慢来，不着急。';
   }
@@ -17089,24 +17117,7 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
     clearTimeout(setBubble._tm);
     setBubble._tm = setTimeout(function () { box.classList.remove('open'); }, 9000);
   }
-  function renderYouthGrid() {
-    var s = SG();
-    if (!mgGrid || !s.Courses || !s.Courses.teen) return;
-    mgGrid.innerHTML = '';
-    var groupTag = { teen: '青少年版', adult: '成人版' };
-    youthAllCourses().forEach(function (c) {
-      var fin = !!(s.doneRef && s.doneRef[c.title]);
-      var d = document.createElement('div');
-      d.className = 'ym-card' + (fin ? ' done' : '');
-      d.innerHTML = '<span class="yc-tag">' + c.tag + '</span>' +
-        '<span class="yc-grp" data-grp="' + c.__grp + '">' + (groupTag[c.__grp] || '') + '</span>' +
-        '<h4>' + c.title + '</h4><p>' + c.desc + '</p>' +
-        '<div class="yc-meta">⏱ ' + (c.minutes || 10) + ' 分钟 · ' + (fin ? '已学完' : c.meta) + '</div>' +
-        '<div class="yc-open">' + (fin ? '✓ 复习这一课 →' : '开始学习 →') + '</div>';
-      d.addEventListener('click', function () { s.openCourse && s.openCourse(c); });
-      mgGrid.appendChild(d);
-    });
-  }
+  /* v3.6：课程入口恢复为底部课程卡网格（#ym-grid），环绕芯片方案已按需求取消 */
   /* 花瓣标签数据源: teen+adult 全部课程 + 完成状态快照 */
   function youthCourseList() {
     var s = SG();
@@ -17114,21 +17125,30 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
       return { title: c.title, tag: c.tag, __done: !!(s.doneRef && s.doneRef[c.title]), __ref: c };
     });
   }
-  /* 课程入口芯片：种在玉兰旁边（花园页），点击直接开课 */
-  function renderGardenCourses() {
-    var host = document.getElementById('ym-garden-courses');
+  /* 课程卡网格：恢复底部课程列表（v3.6 取消环绕芯片方案），点击卡片翻开课程 */
+  function renderYouthGrid() {
+    var host = document.getElementById('ym-grid');
     if (!host) return;
     var s = SG();
+    var all = youthAllCourses();
+    var escY = function (t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); };
     host.innerHTML = '';
-    youthAllCourses().forEach(function (c) {
+    all.forEach(function (c) {
       var fin = !!(s.doneRef && s.doneRef[c.title]);
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'ygc-chip' + (fin ? ' done' : '');
-      b.innerHTML = '<span class="ygc-t">' + (fin ? '✓ ' : '📖 ') + c.title + '</span>' +
-        '<span class="ygc-m">' + c.tag + ' · ' + (c.minutes || 10) + ' 分钟</span>';
-      b.addEventListener('click', function () { s.openCourse && s.openCourse(c); });
-      host.appendChild(b);
+      var card = document.createElement('div');
+      card.className = 'ym-card' + (fin ? ' done' : '');
+      card.setAttribute('role', 'button');
+      card.tabIndex = 0;
+      card.innerHTML =
+        '<span class="yc-tag">' + escY(c.tag) + '</span>' +
+        '<h4>' + escY(c.title) + '</h4>' +
+        '<p>' + escY(c.desc || '') + '</p>' +
+        '<div class="yc-meta">' + escY(c.meta || '') + (fin ? ' · 已学完' : '') + '</div>' +
+        '<div class="yc-open">翻开这一课 →</div>';
+      var open = function () { s.openCourse && s.openCourse(c); };
+      card.addEventListener('click', open);
+      card.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      host.appendChild(card);
     });
   }
   function ensureMagnolia() {
@@ -17167,7 +17187,6 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
     document.body.classList.toggle('youth-view-on', name === 'youth');
     if (name === 'youth') {
       renderYouthGrid();
-      renderGardenCourses();
       paintProgress();
       if (tipIdx < 0) setBubble(WELCOME);
       ensureMagnolia();
@@ -17201,11 +17220,10 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
   document.addEventListener('sg-youth-progress', function (ev) {
     var d = (ev && ev.detail) || {};
     renderYouthGrid();
-    renderGardenCourses();
     paintProgress();
     ensureMagnolia();
     if (d.total && d.done >= d.total) {
-      setBubble('全部八课学完了！生命之雨一次次落下，小树长成了满树繁花的大树 🌸✨ 这八个生长阶段，就是你走过的八段小小旅程——青少年和成人版的课，你都走完啦！');
+      setBubble('全部课程学完了！生命之雨一次次落下，小树长成了满树繁花的大树 🌸✨ 满树的每一朵花，都是你认认真真学完的一节课——青少年和成人版的课，你都走完啦！');
       try { SG().toast('玉兰树完全长大了！八个生长阶段都是你学过的课 🌸'); } catch (e) {}
     } else if (d.done === 1) {
       setBubble('生命之雨落下来了！枝头第一朵玉兰在雨里开啦 🌧🌸 接下来的课不着急，安安和玉玉一直都在。');
@@ -17214,6 +17232,10 @@ body.style-flat .listen-tip { color:var(--fx-ink); opacity:.55; }
 
   var ymSwitch = document.getElementById('ym-switch');
   if (ymSwitch) ymSwitch.addEventListener('click', openSplash);
+
+  /* 标准版导航：模式切换键 → 唤起模式选择页（与青少年「换个模式」同一路径） */
+  var navModeBtn = document.getElementById('nav-mode-btn');
+  if (navModeBtn) navModeBtn.addEventListener('click', openSplash);
 
   /* ---------- 设置面板：体验模式快捷切换 ---------- */
   $$s('[data-sgmode]').forEach(function (b) {
@@ -18146,7 +18168,7 @@ window.SGYouthLife = (function () {
   function renderFriends() {
     var box = $('bt-friends'); if (!box) return;
     var list = rels();
-    if (!list.length) { box.innerHTML = '<span class="bt-empty">还没有好友 · 先去「我的」里用邀请码添加吧</span>'; return; }
+    if (!list.length) { box.innerHTML = '<span class="bt-empty">还没有小伙伴 · 去「小伙伴」页用邀请码加一位吧 🙋</span>'; return; }
     box.innerHTML = '';
     list.forEach(function (r) {
       var b = document.createElement('button');
@@ -18242,6 +18264,93 @@ window.SGYouthLife = (function () {
     refreshBadges();
   }
   function onBottleOpen() { renderFriends(); renderLog(); syncEnergy(); tip(''); }
+
+  /* ════════ ①½ 小伙伴系统（与标准版「亲友」共用同一关系数据层 · 完全打通） ════════ */
+  function renderBuddies() {
+    var box = $('bd-list'); if (!box) return;
+    var me = null;
+    try { me = SGF().curUser && SGF().curUser(); } catch (e) {}
+    var codeEl = $('bd-my-code');
+    if (codeEl) {
+      var myCode2 = '';
+      try { var u = SGF().users() || {}; myCode2 = (me && u[me] && u[me].code) || ''; } catch (e2) {}
+      codeEl.textContent = myCode2 || 'SG-······';
+    }
+    var list = rels();
+    var cnt = $('bd-count'); if (cnt) cnt.textContent = list.length + ' 位';
+    if (!me) { box.innerHTML = '<p class="bd-empty">还没有登录账号 · 用右下角「登录 / 注册」建一个号，就能和小伙伴互加啦</p>'; return; }
+    if (!list.length) { box.innerHTML = '<p class="bd-empty">还没有小伙伴 · 在左边输入 TA 的邀请码加一个吧 🙋</p>'; return; }
+    box.innerHTML = '';
+    list.forEach(function (r) {
+      var d = document.createElement('div');
+      d.className = 'bd-item';
+      var ava = r.type === 'sib' ? '👧' : r.type === 'kin' ? '🧑' : '🧒';
+      d.innerHTML = '<span class="bd-ava">' + ava + '</span>' +
+        '<span class="bd-who"><b>' + esc(r.label || r.user) + '</b><i>' +
+        esc(SGF().relTypeLabel ? SGF().relTypeLabel(r.type, r.label) : '小伙伴') + ' · ' + esc(r.code || '') + '</i></span>';
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'bd-del'; rm.textContent = '解除';
+      rm.addEventListener('click', function () { removeBuddy(r); });
+      d.appendChild(rm);
+      box.appendChild(d);
+    });
+  }
+  function removeBuddy(r) {
+    if (!window.confirm('确定和 ' + (r.label || r.user) + ' 解除小伙伴关系吗？')) return;
+    var p = SGF().removeRelation(r.user);
+    if (p && typeof p.then === 'function') {
+      p.then(function () { renderBuddies(); renderFriends(); toast('已解除小伙伴关系'); })
+       .catch(function () { toast('网络异常，稍后再试'); });
+    } else {
+      renderBuddies(); renderFriends(); toast('已解除小伙伴关系');
+    }
+  }
+  function bindBuddies() {
+    var typeSel = $('bd-type');
+    if (typeSel) typeSel.addEventListener('change', function () {
+      var lb = $('bd-label'); if (lb) lb.style.display = typeSel.value === 'custom' ? '' : 'none';
+    });
+    var form = $('bd-form');
+    if (form) form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var code = (($('bd-code') || {}).value || '').trim();
+      var type = (($('bd-type') || {}).value || 'frd');
+      var label = (($('bd-label') || {}).value || '').trim();
+      var meNow = null; try { meNow = SGF().curUser && SGF().curUser(); } catch (e0) {}
+      if (!meNow) { toast('先登录 / 注册一个账号，才能加小伙伴哦'); return; }
+      var res = SGF().addRelation(code, type, label);
+      if (res && typeof res.then === 'function') {
+        /* 云端模式：服务端建立双向关系，成功后刷新本地渲染 */
+        res.then(function () {
+          var note = $('bd-req-note'); if (note) note.textContent = '✓ 邀请已送到云端，等 TA 上线后就会出现在彼此的列表里';
+          var ic = $('bd-code'); if (ic) ic.value = '';
+          renderBuddies(); renderFriends();
+        }).catch(function () { toast('网络异常，稍后再试'); });
+        return;
+      }
+      if (res && res.ok) {
+        toast('已添加小伙伴：' + ((res.rel && (res.rel.label || res.rel.name)) || ''));
+        var note2 = $('bd-req-note');
+        if (note2) note2.innerHTML = '✓ 已和 <b>' + esc((res.rel && res.rel.name) || '') + '</b> 成为小伙伴，去「漂流瓶」给 TA 寄一瓶吧 🫙';
+        var ic2 = $('bd-code'); if (ic2) ic2.value = '';
+        var lb2 = $('bd-label'); if (lb2) lb2.value = '';
+        renderBuddies(); renderFriends();
+      } else if (res && res.msg) {
+        toast(res.msg);
+      }
+    });
+    var copy = $('bd-copy');
+    if (copy) copy.addEventListener('click', function () {
+      var t = (($('bd-my-code') || {}).textContent || '').trim();
+      try { navigator.clipboard && navigator.clipboard.writeText(t); toast('邀请码已复制：' + t); }
+      catch (e) { toast('复制失败，请手动记下：' + t); }
+    });
+    var dock = $('yb-dock');
+    if (dock) dock.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('button[data-ypanel]');
+      if (btn && btn.dataset.ypanel === 'buddies') setTimeout(renderBuddies, 60);
+    });
+  }
 
   /* ════════ ② 成长乐园 ════════ */
   var MOOD_SAY = {
@@ -18687,6 +18796,7 @@ window.SGYouthLife = (function () {
       if (k === 'bottle') setTimeout(onBottleOpen, 60);
       if (k === 'park') setTimeout(onParkOpen, 60);
     });
+    bindBuddies();
     watchExercise();
     checkMail();
     window.addEventListener('viewchange', function (ev) {
@@ -18702,7 +18812,8 @@ window.SGYouthLife = (function () {
     checkMail: checkMail,
     sendLetter: sendLetter,
     say: say,
-    __v: 3
+    renderBuddies: renderBuddies,
+    __v: 4
   };
 })();
 </script>
@@ -19643,13 +19754,13 @@ body.youth-mode .yg-energy {
 body.youth-mode .yg-orb {
   position:relative; width:66px; height:66px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
-  background:radial-gradient(circle at 33% 27%, #f2fff7 0%, #b9f4d2 30%, #62da9b 58%, #27b06d 100%);
-  box-shadow:0 0 0 3px rgba(255,255,255,.7), 0 10px 22px -6px rgba(39,176,109,.55),
-    inset 0 -8px 14px rgba(14,120,66,.35), inset 0 6px 10px rgba(255,255,255,.55);
+  background:#8FE8B6;                       /* v3.5 扁平 2D：纯色填充，不再用径向渐变 */
+  border:4px solid #1F7A4A;                 /* 粗描边卡通轮廓 */
+  box-shadow:0 6px 0 #17854F, 0 12px 20px -8px rgba(31,122,74,.5);  /* 硬偏移投影 + 轻悬浮 */
   animation:ygOrbFloat 3.8s ease-in-out infinite;
 }
-.yg-orb .yg-orb-hi{position:absolute; left:13px; top:9px; width:17px; height:10px; border-radius:50%;
-  background:rgba(255,255,255,.92); filter:blur(1px); transform:rotate(-18deg);}
+.yg-orb .yg-orb-hi{position:absolute; left:14px; top:10px; width:20px; height:11px; border-radius:50%;
+  background:#fff; transform:rotate(-16deg);}  /* 单个实心高光椭圆，无模糊 */
 .yg-orb .yg-orb-bolt{position:absolute; right:-2px; top:-4px; font-style:normal; font-size:14px;
   filter:drop-shadow(0 0 5px rgba(255,214,90,.9)); animation:ygBoltTw 2.6s ease-in-out infinite;}
 body.youth-mode .yg-orb-val{display:flex; align-items:baseline; gap:1px;
@@ -19691,6 +19802,32 @@ body.youth-mode .yg-badge {
   transform:rotate(3deg); box-shadow:3px 3px 0 rgba(255,143,192,.35);
   pointer-events:none; user-select:none;
 }
+
+/* ════════ v3.5 小伙伴面板（糖果手账风 · 数据与标准版亲友完全打通） ════════ */
+#ypanel-buddies .bd-grid{display:grid; grid-template-columns:1fr 1fr; gap:1.2rem;}
+.bd-card{background:rgba(255,255,255,.78); border:2.5px solid #ffd0e4; border-radius:22px; padding:1.15rem 1.25rem; box-shadow:0 10px 24px -14px rgba(232,139,176,.5);}
+.bd-card h4{margin:0 0 .7rem; font-size:1.02rem; color:#a83d74; display:flex; align-items:center; gap:.5rem;}
+.bd-codebox{margin-bottom:.7rem;}
+.bd-note{font-size:.85rem; color:#7a5c68; line-height:1.7; margin:0 0 .8rem;}
+.bd-form{display:flex; flex-direction:column; gap:.6rem;}
+.bd-input{width:100%; padding:.6rem .85rem; border:2px solid #ffd0e4; border-radius:12px; background:#fff; font-family:inherit; font-size:.92rem; color:#4a3340; outline:none; transition:border-color .2s; box-sizing:border-box;}
+.bd-input:focus{border-color:#ff9ac6;}
+.bd-row{display:flex; gap:.6rem;}
+.bd-row .bd-input{flex:1; min-width:0;}
+.bd-add{padding:.72rem; border:none; border-radius:999px; cursor:pointer; font-weight:900; font-size:.95rem; color:#fff; background:linear-gradient(135deg,#ff9ac6,#f77fb0); box-shadow:0 6px 14px -6px rgba(232,139,176,.7); transition:.2s; font-family:inherit;}
+.bd-add:hover{transform:translateY(-2px); box-shadow:0 10px 22px -8px rgba(232,139,176,.75);}
+.bd-req-note{min-height:1.2em; font-size:.82rem; color:#4E7386; margin:.5rem 0 0; line-height:1.6;}
+.bd-list{display:flex; flex-direction:column; gap:.55rem; min-height:120px;}
+.bd-item{display:flex; align-items:center; gap:.7rem; background:#fff; border:2px solid #ffe3f0; border-radius:16px; padding:.55rem .8rem;}
+.bd-ava{width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#ffe3f0,#e8fff4); border:2px solid #ffd0e4; display:flex; align-items:center; justify-content:center; font-size:19px; flex-shrink:0;}
+.bd-who{display:flex; flex-direction:column; min-width:0; flex:1;}
+.bd-who b{font-size:.95rem; color:#4a3340; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.bd-who i{font-style:normal; font-size:.75rem; color:#b08a98;}
+.bd-del{border:1.5px solid #ffd0e4; background:#fff5f9; color:#c2447e; border-radius:999px; padding:.3rem .75rem; font-size:.75rem; font-weight:800; cursor:pointer; flex-shrink:0; transition:.2s; font-family:inherit;}
+.bd-del:hover{background:#ff9ac6; color:#fff;}
+.bd-empty{font-size:.9rem; color:#b08a98; text-align:center; padding:1.6rem 0; margin:0;}
+.bd-tip{font-size:.8rem; color:#8a6b78; background:#fff5f9; border-radius:12px; padding:.6rem .8rem; line-height:1.7; margin:.8rem 0 0;}
+@media (max-width:760px){ #ypanel-buddies .bd-grid{grid-template-columns:1fr;} }
 
 /* ════════════════════════════════════════════
    三、老年版：安心大字 —— 方便使用
@@ -20008,424 +20145,4 @@ body:not(.elder-mode) .hero .stat .lb { color:#6E6152 !important; }
   } catch (e) {}
 })();
 </script>
-<style id="ui-midnight-css">
-/* ════════════════════════════════════════════════════════════
-   墨夜流萤 · Midnight Ink —— 全面改版视觉层
-   深墨底 × 极光翡翠 × 几何无衬线 × 玻璃拟态
-   （仅作用于默认模式；青少年/长者模式保留各自专属皮肤）
-   ════════════════════════════════════════════════════════════ */
-
-/* ---------- 一、主题变量总置换 ---------- */
-body:not(.youth-mode):not(.elder-mode) {
-  --bg: #070B10;
-  --bg2: #0C1219;
-  --ink: #E8F1EC;
-  --muted: #8CA0A6;
-  --accent: #3DDCA8;
-  --accent-deep: #1FB987;
-  --accent-soft: rgba(61, 220, 168, .13);
-  --violet: #8B7CF6;
-  --cyan: #59C2FF;
-  --radius: 12px;
-  --glass-hi: rgba(13, 20, 27, .86);
-  --glass-bd: rgba(61, 220, 168, .16);
-  --shadow-sm: 0 10px 30px -12px rgba(0, 0, 0, .55);
-  --shadow-md: 0 20px 48px -18px rgba(0, 0, 0, .6);
-  --shadow-lg: 0 34px 70px -22px rgba(0, 0, 0, .68);
-  background: var(--bg);
-  color: var(--ink);
-}
-
-/* ---------- 二、极光夜幕背景 ---------- */
-body:not(.youth-mode):not(.elder-mode)::before {
-  content: ""; position: fixed; inset: -22vh -12vw; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(46vw 46vw at 14% 12%, rgba(61, 220, 168, .10), transparent 62%),
-    radial-gradient(42vw 42vw at 86% 8%, rgba(139, 124, 246, .11), transparent 60%),
-    radial-gradient(50vw 50vw at 78% 90%, rgba(89, 194, 255, .09), transparent 64%),
-    radial-gradient(36vw 36vw at 16% 92%, rgba(61, 220, 168, .07), transparent 60%),
-    linear-gradient(180deg, #070B10 0%, #0A1118 52%, #070B10 100%);
-  animation: rgDrift 52s ease-in-out infinite alternate;
-  will-change: transform;
-}
-/* 星屑微光层 */
-body:not(.youth-mode):not(.elder-mode)::after {
-  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background-image:
-    radial-gradient(1.1px 1.1px at 12% 22%, rgba(232, 241, 236, .5), transparent 100%),
-    radial-gradient(1px 1px at 78% 14%, rgba(139, 124, 246, .55), transparent 100%),
-    radial-gradient(1.2px 1.2px at 64% 74%, rgba(61, 220, 168, .4), transparent 100%),
-    radial-gradient(1px 1px at 32% 82%, rgba(89, 194, 255, .45), transparent 100%),
-    radial-gradient(.9px .9px at 88% 52%, rgba(232, 241, 236, .35), transparent 100%),
-    radial-gradient(1px 1px at 8% 58%, rgba(61, 220, 168, .35), transparent 100%);
-  animation: rgTwinkle 7s ease-in-out infinite alternate;
-}
-
-::selection { background: rgba(61, 220, 168, .32); color: #EAFBF3; }
-body:not(.youth-mode):not(.elder-mode) ::-webkit-scrollbar { width: 9px; height: 9px; }
-body:not(.youth-mode):not(.elder-mode) ::-webkit-scrollbar-track { background: #0A0F15; }
-body:not(.youth-mode):not(.elder-mode) ::-webkit-scrollbar-thumb { background: #1C2A33; border-radius: 8px; border: 2px solid #0A0F15; }
-body:not(.youth-mode):not(.elder-mode) ::-webkit-scrollbar-thumb:hover { background: #2A4150; }
-
-/* ---------- 三、字体系统：衬线 → 几何无衬线 ---------- */
-body:not(.youth-mode):not(.elder-mode) h1,
-body:not(.youth-mode):not(.elder-mode) h2,
-body:not(.youth-mode):not(.elder-mode) h3,
-body:not(.youth-mode):not(.elder-mode) h4 {
-  font-family: 'Inter', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
-  font-weight: 800;
-  letter-spacing: -.015em;
-  line-height: 1.28;
-}
-body:not(.youth-mode):not(.elder-mode) .nav .brand .name,
-body:not(.youth-mode):not(.elder-mode) .nav .brand .name small {
-  font-family: 'Inter', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
-  letter-spacing: .06em;
-}
-body:not(.youth-mode):not(.elder-mode) .nav .brand .name { font-weight: 800; }
-body:not(.youth-mode):not(.elder-mode) .stats .num,
-body:not(.youth-mode):not(.elder-mode) .stat .num {
-  font-family: 'Inter', 'HarmonyOS Sans SC', 'MiSans', 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
-  font-weight: 800;
-  font-style: normal;
-}
-body:not(.youth-mode):not(.elder-mode) .belief .b-item .bn { font-family: inherit; font-style: normal; font-weight: 800; opacity: .45; }
-
-/* ---------- 四、顶部导航：墨玻璃 + 流光底缘 ---------- */
-body:not(.youth-mode):not(.elder-mode) .nav {
-  background: rgba(9, 14, 20, .78);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
-  backdrop-filter: blur(18px) saturate(1.35);
-  border-bottom: 1px solid rgba(61, 220, 168, .14);
-  box-shadow: 0 1px 0 rgba(232, 241, 236, .04), 0 18px 44px -24px rgba(0, 0, 0, .8);
-}
-body:not(.youth-mode):not(.elder-mode) .nav::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; pointer-events: none;
-  background: linear-gradient(90deg, transparent 6%, rgba(61, 220, 168, .55) 34%, rgba(139, 124, 246, .5) 62%, transparent 94%);
-  opacity: .8;
-}
-body:not(.youth-mode):not(.elder-mode) .nav .brand .mark .ring { stroke: var(--accent); opacity: .5; }
-body:not(.youth-mode):not(.elder-mode) .nav .brand .mark .steam { stroke: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .nav .brand .mark .spark { fill: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .nav .brand .mark .cup { stroke: #93B8AB; }
-body:not(.youth-mode):not(.elder-mode) .nav .brand .name em { color: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .nav-links a {
-  color: #C4D2D2;
-  border-radius: 9px;
-  transition: color .22s, background .22s, box-shadow .22s;
-}
-body:not(.youth-mode):not(.elder-mode) .nav-links a:hover { background: rgba(61, 220, 168, .1); color: #EAFBF3; }
-body:not(.youth-mode):not(.elder-mode) .nav-links a.active {
-  background: rgba(61, 220, 168, .13);
-  color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent), 0 0 18px -6px rgba(61, 220, 168, .5);
-}
-body:not(.youth-mode):not(.elder-mode) .nav-ind { background: rgba(61, 220, 168, .13); border-radius: 9px; box-shadow: inset 0 -2px 0 var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .nav-user { color: #C4D2D2; border: 1px solid rgba(140, 160, 166, .25); border-radius: 9px; }
-body:not(.youth-mode):not(.elder-mode) .nav-user:hover { border-color: var(--accent); color: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .hotline-btn {
-  border: 1px solid rgba(61, 220, 168, .4); color: var(--accent); border-radius: 999px;
-  box-shadow: 0 0 16px -6px rgba(61, 220, 168, .55);
-}
-body:not(.youth-mode):not(.elder-mode) .hotline-btn:hover { background: rgba(61, 220, 168, .12); }
-body:not(.youth-mode):not(.elder-mode) .nav-gear { color: #C4D2D2; border-radius: 9px; }
-body:not(.youth-mode):not(.elder-mode) .nav-gear:hover { color: var(--accent); background: rgba(61, 220, 168, .1); }
-
-/* ---------- 五、Hero：流光标题 ---------- */
-body:not(.youth-mode):not(.elder-mode) .hero .eyebrow {
-  color: var(--accent);
-  border: 1px solid rgba(61, 220, 168, .45);
-  border-radius: 999px;
-  background: rgba(61, 220, 168, .07);
-  box-shadow: 0 0 22px -8px rgba(61, 220, 168, .6);
-}
-body:not(.youth-mode):not(.elder-mode) .hero h1 { text-shadow: 0 8px 40px rgba(0, 0, 0, .5); }
-body:not(.youth-mode):not(.elder-mode) .hero h1 em {
-  font-style: normal;
-  background: linear-gradient(96deg, #3DDCA8 8%, #59C2FF 48%, #8B7CF6 92%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-}
-body:not(.youth-mode):not(.elder-mode) .hero .sub { font-family: inherit; font-style: normal; color: var(--muted); }
-body:not(.youth-mode):not(.elder-mode) .hero .orb { background: radial-gradient(circle at 34% 34%, rgba(61, 220, 168, .3), transparent 68%); }
-body:not(.youth-mode):not(.elder-mode) .hero .orb.o2 { background: radial-gradient(circle at 34% 34%, rgba(139, 124, 246, .3), transparent 68%); }
-body:not(.youth-mode):not(.elder-mode) .hero .orb.o3 { background: radial-gradient(circle at 34% 34%, rgba(89, 194, 255, .26), transparent 68%); }
-body:not(.youth-mode):not(.elder-mode) .hero .orb.o4 { background: radial-gradient(circle at 34% 34%, rgba(61, 220, 168, .18), transparent 68%); }
-
-/* 统计数字：渐变流光 */
-body:not(.youth-mode):not(.elder-mode) .stats .num,
-body:not(.youth-mode):not(.elder-mode) .stat .num {
-  background: linear-gradient(120deg, #EAFBF3 20%, #3DDCA8 60%, #59C2FF 100%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
-}
-body:not(.youth-mode):not(.elder-mode) .stats .num small,
-body:not(.youth-mode):not(.elder-mode) .stat .num small { -webkit-text-fill-color: initial; color: var(--muted); }
-body:not(.youth-mode):not(.elder-mode) .stat .lb { color: var(--muted); }
-
-/* ---------- 六、按钮：翡翠辉光 ---------- */
-body:not(.youth-mode):not(.elder-mode) .btn { border-radius: 11px; letter-spacing: .01em; }
-body:not(.youth-mode):not(.elder-mode) .btn-primary {
-  background: linear-gradient(135deg, #2FCF9C 0%, #1FB987 55%, #17A97B 100%);
-  color: #04120C;
-  font-weight: 700;
-  box-shadow: 0 6px 26px -6px rgba(61, 220, 168, .55), inset 0 1px 0 rgba(255, 255, 255, .35);
-}
-body:not(.youth-mode):not(.elder-mode) .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 34px -6px rgba(61, 220, 168, .7), inset 0 1px 0 rgba(255, 255, 255, .35);
-}
-body:not(.youth-mode):not(.elder-mode) .btn-ghost {
-  color: var(--ink);
-  border: 1px solid rgba(140, 160, 166, .35);
-  background: rgba(13, 20, 27, .5);
-}
-body:not(.youth-mode):not(.elder-mode) .btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: rgba(61, 220, 168, .08); }
-
-/* ---------- 七、卡片：墨玻璃 + 辉光描边 ---------- */
-body:not(.youth-mode):not(.elder-mode) .feat-card,
-body:not(.youth-mode):not(.elder-mode) .listen-card,
-body:not(.youth-mode):not(.elder-mode) .sp-card,
-body:not(.youth-mode):not(.elder-mode) .level-card {
-  background: linear-gradient(168deg, rgba(16, 24, 32, .92) 0%, rgba(11, 17, 24, .94) 100%);
-  border: 1px solid rgba(140, 160, 166, .16);
-  border-radius: 14px;
-  box-shadow: var(--shadow-md);
-  transition: transform .3s var(--eo, cubic-bezier(.16,1,.3,1)), border-color .3s, box-shadow .3s;
-}
-body:not(.youth-mode):not(.elder-mode) .feat-card:hover,
-body:not(.youth-mode):not(.elder-mode) .listen-card:hover {
-  transform: translateY(-6px);
-  border-color: rgba(61, 220, 168, .55);
-  box-shadow: 0 26px 60px -22px rgba(0, 0, 0, .75), 0 0 30px -10px rgba(61, 220, 168, .4);
-}
-body:not(.youth-mode):not(.elder-mode) .feat-card .icon {
-  background: linear-gradient(140deg, rgba(61, 220, 168, .18), rgba(139, 124, 246, .16));
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(61, 220, 168, .25);
-}
-body:not(.youth-mode):not(.elder-mode) .feat-card .go { color: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .lc-ico {
-  background: linear-gradient(140deg, rgba(89, 194, 255, .18), rgba(61, 220, 168, .16));
-  box-shadow: inset 0 0 0 1px rgba(89, 194, 255, .3);
-  border-radius: 12px;
-}
-body:not(.youth-mode):not(.elder-mode) .lc-go { color: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) .feat-card h3,
-body:not(.youth-mode):not(.elder-mode) .listen-card .lc-name { color: var(--ink); }
-body:not(.youth-mode):not(.elder-mode) .feat-card p,
-body:not(.youth-mode):not(.elder-mode) .listen-card .lc-desc { color: var(--muted); }
-
-/* ---------- 八、章节头 & 页头 ---------- */
-body:not(.youth-mode):not(.elder-mode) .section-head h2 { color: var(--ink); }
-body:not(.youth-mode):not(.elder-mode) .section-head p { color: var(--muted); }
-body:not(.youth-mode):not(.elder-mode) .ornament i { background: var(--accent); box-shadow: 0 0 10px rgba(61, 220, 168, .8); }
-body:not(.youth-mode):not(.elder-mode) .page-head .crumb {
-  color: var(--accent);
-  letter-spacing: .22em;
-}
-body:not(.youth-mode):not(.elder-mode) .page-head h2 { color: var(--ink); }
-body:not(.youth-mode):not(.elder-mode) .page-head p { color: var(--muted); }
-
-/* ---------- 九、课堂 / 影院 ---------- */
-body:not(.youth-mode):not(.elder-mode) .age-tab {
-  background: rgba(13, 20, 27, .7);
-  color: var(--muted);
-  border: 1px solid rgba(140, 160, 166, .22);
-  border-radius: 999px;
-}
-body:not(.youth-mode):not(.elder-mode) .age-tab.active {
-  background: rgba(61, 220, 168, .14);
-  color: var(--accent);
-  border-color: rgba(61, 220, 168, .55);
-  box-shadow: 0 0 18px -6px rgba(61, 220, 168, .55);
-}
-body:not(.youth-mode):not(.elder-mode) .listen-tip,
-body:not(.youth-mode):not(.elder-mode) .sp-note { color: var(--muted); }
-
-/* ---------- 十、对话/聊天 ---------- */
-body:not(.youth-mode):not(.elder-mode) .chat-log { background: transparent; }
-body:not(.youth-mode):not(.elder-mode) .msg .bubble {
-  background: rgba(16, 24, 32, .9);
-  border: 1px solid rgba(140, 160, 166, .18);
-  color: var(--ink);
-}
-body:not(.youth-mode):not(.elder-mode) .msg.user .bubble {
-  background: rgba(61, 220, 168, .13);
-  border-color: rgba(61, 220, 168, .3);
-  color: #EAFBF3;
-}
-body:not(.youth-mode):not(.elder-mode) .chat-input-row textarea,
-body:not(.youth-mode):not(.elder-mode) .chat-input-row input {
-  background: rgba(10, 15, 21, .85);
-  border: 1px solid rgba(140, 160, 166, .25);
-  color: var(--ink);
-  border-radius: 11px;
-}
-body:not(.youth-mode):not(.elder-mode) .chat-input-row textarea:focus,
-body:not(.youth-mode):not(.elder-mode) .chat-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(61, 220, 168, .15); }
-body:not(.youth-mode):not(.elder-mode) .chat-input-row .send {
-  background: linear-gradient(135deg, #2FCF9C, #1FB987);
-  color: #04120C;
-  box-shadow: 0 4px 18px -4px rgba(61, 220, 168, .6);
-}
-body:not(.youth-mode):not(.elder-mode) .chat-tags .tag,
-body:not(.youth-mode):not(.elder-mode) .chat-input-row ~ .chat-tags span {
-  color: var(--accent);
-  background: rgba(61, 220, 168, .1);
-  border-radius: 999px;
-}
-
-/* ---------- 十一、表单与弹窗 ---------- */
-body:not(.youth-mode):not(.elder-mode) input,
-body:not(.youth-mode):not(.elder-mode) textarea,
-body:not(.youth-mode):not(.elder-mode) select {
-  background: rgba(10, 15, 21, .85);
-  border: 1px solid rgba(140, 160, 166, .25);
-  color: var(--ink);
-}
-body:not(.youth-mode):not(.elder-mode) input:focus,
-body:not(.youth-mode):not(.elder-mode) textarea:focus,
-body:not(.youth-mode):not(.elder-mode) select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(61, 220, 168, .14); }
-body:not(.youth-mode):not(.elder-mode) .modal-mask {
-  background: rgba(3, 6, 10, .66);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-}
-body:not(.youth-mode):not(.elder-mode) .modal-mask .modal,
-body:not(.youth-mode):not(.elder-mode) .modal-mask .modal-card,
-body:not(.youth-mode):not(.elder-mode) .modal-mask > div {
-  background: linear-gradient(168deg, rgba(16, 24, 32, .97), rgba(11, 17, 24, .98));
-  border: 1px solid rgba(61, 220, 168, .2);
-  border-radius: 16px;
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, .85), 0 0 40px -18px rgba(61, 220, 168, .3);
-}
-body:not(.youth-mode):not(.elder-mode) .auth-mask,
-body:not(.youth-mode):not(.elder-mode) .share-mask { background: rgba(3, 6, 10, .66); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-body:not(.youth-mode):not(.elder-mode) .auth-mask .auth-card,
-body:not(.youth-mode):not(.elder-mode) .share-mask .share-card,
-body:not(.youth-mode):not(.elder-mode) .share-mask .inbox-card,
-body:not(.youth-mode):not(.elder-mode) .share-mask .story-card {
-  background: linear-gradient(168deg, rgba(16, 24, 32, .97), rgba(11, 17, 24, .98));
-  border: 1px solid rgba(61, 220, 168, .2);
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, .85);
-}
-
-/* ---------- 十二、启动页（模式选择）与引导页 ---------- */
-body:not(.youth-mode):not(.elder-mode) #sg-splash {
-  background:
-    radial-gradient(50vw 46vw at 16% 14%, rgba(61, 220, 168, .12), transparent 60%),
-    radial-gradient(44vw 44vw at 84% 12%, rgba(139, 124, 246, .12), transparent 58%),
-    radial-gradient(52vw 50vw at 80% 92%, rgba(89, 194, 255, .1), transparent 62%),
-    linear-gradient(180deg, #070B10, #0A1118 55%, #070B10);
-}
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-topbar { border-bottom: 1px solid rgba(140, 160, 166, .14); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-brand { color: var(--ink); letter-spacing: .3em; }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-skip {
-  color: var(--muted); border: 1px solid rgba(140, 160, 166, .28); border-radius: 999px;
-}
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-skip:hover { color: var(--accent); border-color: var(--accent); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world {
-  background: linear-gradient(168deg, rgba(16, 24, 32, .92), rgba(11, 17, 24, .95));
-  border: 1px solid rgba(140, 160, 166, .18);
-  border-radius: 18px;
-  box-shadow: var(--shadow-lg);
-  transition: transform .3s var(--eo, cubic-bezier(.16,1,.3,1)), border-color .3s, box-shadow .3s;
-}
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world:hover { transform: translateY(-6px); box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .8); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world--youth { border-color: rgba(89, 194, 255, .4); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world--youth:hover { box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .8), 0 0 34px -10px rgba(89, 194, 255, .45); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world--normal { border-color: rgba(61, 220, 168, .4); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world--normal:hover { box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .8), 0 0 34px -10px rgba(61, 220, 168, .45); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world--elder { border-color: rgba(139, 124, 246, .4); }
-body:not(.youth-mode):not(.elder-mode) #sg-splash .sp-world--elder:hover { box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .8), 0 0 34px -10px rgba(139, 124, 246, .45); }
-body:not(.youth-mode):not(.elder-mode) .sg-intro { background: rgba(4, 8, 12, .88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-
-/* ---------- 十三、安安伴侣面板 ---------- */
-body:not(.youth-mode):not(.elder-mode) #sg-panel {
-  background: linear-gradient(170deg, rgba(14, 21, 28, .96), rgba(10, 15, 21, .97));
-  border: 1px solid rgba(61, 220, 168, .22);
-  box-shadow: 0 34px 80px -26px rgba(0, 0, 0, .85), 0 0 34px -14px rgba(61, 220, 168, .35);
-  border-radius: 18px;
-}
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-head { border-bottom: 1px solid rgba(140, 160, 166, .14); }
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-who b { color: var(--ink); }
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-who span { color: var(--muted); }
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-icon-btn { color: var(--muted); border-radius: 9px; }
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-icon-btn:hover { color: var(--accent); background: rgba(61, 220, 168, .1); }
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-preset-pill {
-  color: var(--accent); border: 1px solid rgba(61, 220, 168, .4); border-radius: 999px; background: rgba(61, 220, 168, .08);
-}
-body:not(.youth-mode):not(.elder-mode) #sg-panel .sg-story-btn {
-  background: linear-gradient(135deg, #2FCF9C, #1FB987); color: #04120C; font-weight: 700;
-  border-radius: 10px; box-shadow: 0 6px 20px -6px rgba(61, 220, 168, .55);
-}
-body:not(.youth-mode):not(.elder-mode) #sg-bubble {
-  background: linear-gradient(170deg, rgba(14, 21, 28, .95), rgba(10, 15, 21, .96));
-  border: 1px solid rgba(61, 220, 168, .25);
-  color: var(--ink);
-  border-radius: 14px;
-  box-shadow: 0 24px 54px -20px rgba(0, 0, 0, .8);
-}
-body:not(.youth-mode):not(.elder-mode) .sg-modal-card {
-  background: linear-gradient(170deg, rgba(16, 24, 32, .98), rgba(11, 17, 24, .99));
-  border: 1px solid rgba(61, 220, 168, .2);
-  border-radius: 16px;
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, .88);
-}
-body:not(.youth-mode):not(.elder-mode) .sg-preset,
-body:not(.youth-mode):not(.elder-mode) .sg-style {
-  background: rgba(13, 20, 27, .8);
-  border: 1px solid rgba(140, 160, 166, .2);
-  border-radius: 12px;
-}
-body:not(.youth-mode):not(.elder-mode) .sg-preset.active,
-body:not(.youth-mode):not(.elder-mode) .sg-style.active {
-  border-color: rgba(61, 220, 168, .6);
-  background: rgba(61, 220, 168, .1);
-  box-shadow: 0 0 18px -6px rgba(61, 220, 168, .5);
-}
-body:not(.youth-mode):not(.elder-mode) .sg-btn-main {
-  background: linear-gradient(135deg, #2FCF9C, #1FB987); color: #04120C; font-weight: 700; border-radius: 10px;
-}
-body:not(.youth-mode):not(.elder-mode) .sg-btn-ghost2 {
-  border: 1px solid rgba(140, 160, 166, .3); color: var(--muted); border-radius: 10px; background: transparent;
-}
-body:not(.youth-mode):not(.elder-mode) .sg-btn-ghost2:hover { color: var(--accent); border-color: var(--accent); }
-
-/* ---------- 十四、徽标 / 提示 / 帧率 ---------- */
-body:not(.youth-mode):not(.elder-mode) .offline-badge {
-  background: rgba(13, 20, 27, .85);
-  border: 1px solid rgba(61, 220, 168, .3);
-  color: var(--accent);
-  border-radius: 999px;
-  box-shadow: 0 0 20px -8px rgba(61, 220, 168, .5);
-}
-body:not(.youth-mode):not(.elder-mode) .toast {
-  background: rgba(13, 20, 27, .95);
-  border: 1px solid rgba(61, 220, 168, .35);
-  color: var(--ink);
-  border-radius: 12px;
-  box-shadow: 0 20px 50px -18px rgba(0, 0, 0, .85);
-}
-body:not(.youth-mode):not(.elder-mode) #fps-meter {
-  background: rgba(13, 20, 27, .8);
-  border: 1px solid rgba(140, 160, 166, .2);
-  color: var(--muted);
-  border-radius: 9px;
-}
-
-/* ---------- 十五、聚焦可达性 ---------- */
-body:not(.youth-mode):not(.elder-mode) a:focus-visible,
-body:not(.youth-mode):not(.elder-mode) button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body:not(.youth-mode):not(.elder-mode)::before,
-  body:not(.youth-mode):not(.elder-mode)::after { animation: none; }
-}
-</style>
 </body></html>
